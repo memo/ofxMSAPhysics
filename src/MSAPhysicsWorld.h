@@ -280,7 +280,7 @@ namespace msa {
 		template <typename T>
 		WorldT<T>*  WorldT<T>::setGravity(T g) {
 			params.gravity= g;
-			params.doGravity = params.gravity.squareLength() > 0;
+			params.doGravity = params.gravity.lengthSquared() > 0;
 			return this;
 		}
 		
