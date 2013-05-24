@@ -43,10 +43,10 @@ namespace msa {
 		template <typename T>
 		bool SectorT<T>::checkCollisionBetween(ParticleT<T> *a, ParticleT<T> *b) {
 			if(a->hasCollision() == false || b->hasCollision() == false) return false;
-			
-			if((a->collisionPlane & b->collisionPlane) == 0) {
-				return false;
-			}
+            if(a->hasPassiveCollision() && b->hasPassiveCollision()) return false;
+			if((a->collisionPlane & b->collisionPlane) == 0) return false;
+            
+            
 //			printf("same planes %i %i\n", a->collisionPlane, b->collisionPlane);
 			
 			float restLength = b->getRadius() + a->getRadius();

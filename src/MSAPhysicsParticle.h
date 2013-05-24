@@ -40,6 +40,11 @@ namespace msa {
 			ParticleT*		enableCollision();
 			ParticleT*		disableCollision();
 			bool			hasCollision();
+            
+            // passive particles do not collied with each other, only with non-passive (collision must be enabled)
+            ParticleT*		enablePassiveCollision();
+            ParticleT*		disablePassiveCollision();
+            bool            hasPassiveCollision();
 			
 			bool			isFixed();
 			bool			isFree();
@@ -97,6 +102,7 @@ namespace msa {
 			bool			_isDead;
 			bool			_isFixed;
 			bool			_collisionEnabled;
+            bool            _passiveCollision;
 			
 			void			doVerlet();
 			void			checkWorldEdges();
@@ -304,6 +310,7 @@ namespace msa {
 			setBounce();
 			setRadius();
 			enableCollision();
+            disablePassiveCollision();
 			makeFree();
 			_isDead = false;
 			_age = 0;
@@ -328,12 +335,34 @@ namespace msa {
 			_collisionEnabled = false;
 			return this;
 		}
-		
+
         //--------------------------------------------------------------
 		template <typename T>
 		bool ParticleT<T>::hasCollision() {
 			return _collisionEnabled;
 		}
+        
+        //--------------------------------------------------------------
+		template <typename T>
+		ParticleT<T>* ParticleT<T>::enablePassiveCollision() {
+			_passiveCollision = true;
+			return this;
+		}
+
+        //--------------------------------------------------------------
+		template <typename T>
+		ParticleT<T>* ParticleT<T>::disablePassiveCollision() {
+			_passiveCollision = false;
+			return this;
+		}
+        
+        //--------------------------------------------------------------
+		template <typename T>
+		bool ParticleT<T>::hasPassiveCollision() {
+			return _passiveCollision;
+		}
+
+
 		
         //--------------------------------------------------------------
 		template <typename T>
