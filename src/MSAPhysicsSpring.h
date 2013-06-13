@@ -45,7 +45,7 @@ namespace msa {
 				T delta = this->_b->getPosition() - this->_a->getPosition();
 				float deltaLength2 = delta.lengthSquared();
 				float deltaLength = sqrt(deltaLength2);	// TODO: fast approximation of square root (1st order Taylor-expansion at a neighborhood of the rest length r (one Newton-Raphson iteration with initial guess r))
-				float force = _strength * (deltaLength - _restLength) / (deltaLength * (this->_a->getInvMass() + this->_b->getInvMass()));
+				float force = deltaLength > 0 ? _strength * (deltaLength - _restLength) / (deltaLength * (this->_a->getInvMass() + this->_b->getInvMass())) : 0;
 				
 				
 				T deltaForce = delta * force;

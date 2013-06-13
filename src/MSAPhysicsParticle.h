@@ -117,7 +117,7 @@ namespace msa {
 		inline ParticleT<T>* ParticleT<T>::setMass(float t) {
 			if(t==0) t=0.00001f;
 			_mass = t;
-			_invMass = 1.0f/t;
+			_invMass = t > 0 ? 1.0f/t : 0;
 			return this;
 		}
 		

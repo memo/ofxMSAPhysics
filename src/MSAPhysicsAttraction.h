@@ -32,7 +32,7 @@ namespace msa {
 				T delta = this->_b->getPosition() - this->_a->getPosition();
 				float deltaLength2 = delta.lengthSquared();
 				
-				float force = _strength * (this->_b->getMass()) * (this->_a->getMass()) / (deltaLength2 + 0.001);		// to avoid divide by zero
+				float force = deltaLength2 > 0 ? _strength * (this->_b->getMass()) * (this->_a->getMass()) / deltaLength2 : 0;
 				
 				T deltaForce = delta * force;
 				
