@@ -28,9 +28,11 @@ public:
     }
 
 
-    Attraction_ptr setStrength(float s)              { _strength = s; return dynamic_pointer_cast< AttractionT<T> >(this->shared_from_this()); }
-    float getStrength() const                           { return _strength; }
+    Attraction_ptr setStrength(float s)              { _strength = s; return getThis(); }
+    float getStrength() const                        { return _strength; }
 
+
+    Attraction_ptr getThis()                         { return _isInited ? dynamic_pointer_cast< AttractionT<T> >(this->shared_from_this()) : Attraction_ptr(); }
 
     void solve() override {
         T delta(this->_b->getPosition() - this->_a->getPosition());
@@ -42,13 +44,16 @@ public:
         if (this->_b->isFree()) this->_b->moveBy(deltaForce * -this->_b->getInvMass(), false);
     }
 
-protected:    float _strength;
-
+protected:
+    float _strength;
+    bool  _isInited;
 
     AttractionT(Particle_ptr a, Particle_ptr b, float strength):
         ConstraintT<T>(a, b, kConstraintTypeAttraction)
     {
+        _isInited = false;
         setStrength(strength);
+        _isInited = true;
     }
 
 

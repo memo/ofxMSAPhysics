@@ -52,8 +52,20 @@ public:
     Particle3D_ptr      mouseNode;
 
     void initScene() {
-        // clear all particles and springs etc
-        world->clear();
+        // initialize our physics world
+        world = World3D::create();
+
+        mouseNode = world->makeParticle();
+
+        //	world->verbose = true;			// dump activity to log
+        world->setGravity(ofVec3f(0, GRAVITY, 0));
+
+        // set world dimensions, not essential, but speeds up collision
+        world->setWorldSize(ofVec3f(-width/2, -height, -width/2), ofVec3f(width/2, height, width/2));
+        world->setSectorCount(SECTOR_COUNT);
+        world->setDrag(0.97f);
+        world->setDrag(1);		// FIXTHIS
+        world->enableCollision();
 
         world->draw();
 
@@ -85,27 +97,12 @@ public:
         width = ofGetWidth();
         height = ofGetHeight();
 
-        // initialize our physics world
-        world = World3D::create();
-
-        mouseNode = world->makeParticle();
-
-        //	world->verbose = true;			// dump activity to log
-        world->setGravity(ofVec3f(0, GRAVITY, 0));
-
-        // set world dimensions, not essential, but speeds up collision
-        world->setWorldSize(ofVec3f(-width/2, -height, -width/2), ofVec3f(width/2, height, width/2));
-        world->setSectorCount(SECTOR_COUNT);
-        world->setDrag(0.97f);
-        world->setDrag(1);		// FIXTHIS
-        world->enableCollision();
-
         initScene();
 
         // setup lighting
         GLfloat mat_shininess[] = { 50.0 };
         GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
-        GLfloat light_position[] = { 0, height/2, 0.0, 0.0 };
+        GLfloat light_position[] = { 0, (float)height/2, 0.0, 0.0 };
         glShadeModel(GL_SMOOTH);
 
         glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
