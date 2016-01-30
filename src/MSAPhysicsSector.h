@@ -17,19 +17,17 @@ public:
     typedef shared_ptr< AttractionT<T> >      Attraction_ptr;
     typedef shared_ptr< ConstraintT<T> >      Constraint_ptr;
 
-    static Sector_ptr create()                { return Sector_ptr(new SectorT<T>); }
+    static Sector_ptr   create()                        { return Sector_ptr(new SectorT<T>); }
 
-    void checkSectorCollisions();
-    void addParticle(Particle_ptr p)          { _particles.push_back(p); }
-    void clear()                              { _particles.clear(); }
-
-    //	void	checkParticle(ParticleT *p);
+    void                checkSectorCollisions();
+    void                addParticle(Particle_ptr p)     { _particles.push_back(p); }
+    void                clear()                         { _particles.clear(); }
 
 protected:
-    SectorT() {}
-
-    bool checkCollisionBetween(shared_ptr< ParticleT<T> > a, shared_ptr< ParticleT<T> > b);
     vector< Particle_ptr >	_particles;
+
+    SectorT() {}
+    static bool checkCollisionBetween(shared_ptr< ParticleT<T> > a, shared_ptr< ParticleT<T> > b);
 };
 
 

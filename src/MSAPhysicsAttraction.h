@@ -28,11 +28,10 @@ public:
     }
 
 
-    Attraction_ptr setStrength(float s)              { _strength = s; return getThis(); }
-    float getStrength() const                        { return _strength; }
+    Attraction_ptr      setStrength(float s)            { _strength = s; return getThis(); }
+    float               getStrength() const             { return _strength; }
 
-
-    Attraction_ptr getThis()                         { return _isInited ? dynamic_pointer_cast< AttractionT<T> >(this->shared_from_this()) : Attraction_ptr(); }
+    Attraction_ptr      getThis()                       { return _isInited ? dynamic_pointer_cast< AttractionT<T> >(this->shared_from_this()) : Attraction_ptr(); }
 
     void solve() override {
         T delta(this->_b->getPosition() - this->_a->getPosition());

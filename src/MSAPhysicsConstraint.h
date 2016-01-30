@@ -32,15 +32,15 @@ public:
     // virtual destructor needed in case we extend the class and delete via the base class
     virtual ~ConstraintT() {}
 
-    int type() const                                    { return _type; }
+    int type()          const                           { return _type; }
 
     // getOneEnd is a same as getA and getTheOtherEnd is same as getB
     // just have both methods so you can choose whichever you please
-    Particle_ptr getOneEnd() const                   { return _a; }
-    Particle_ptr getTheOtherEnd() const              { return _b; }
+//    Particle_ptr getOneEnd() const                   { return _a; }
+//    Particle_ptr getTheOtherEnd() const              { return _b; }
 
-    Particle_ptr getA() const                        { return _a; }
-    Particle_ptr getB() const                        { return _b; }
+    Particle_ptr getA() const                           { return _a; }
+    Particle_ptr getB() const                           { return _b; }
 
     void turnOff()                                      { _isOn = false; }
     void turnOn()                                       { _isOn = true; }
@@ -74,7 +74,6 @@ public:
 protected:
     Particle_ptr _a, _b;
     ConstraintType	_type;
-//    Params_ptr      _params;
 
     bool			_isOn;
     bool			_isDead;
@@ -82,8 +81,6 @@ protected:
     float			_minDist2;
     float			_maxDist;
     float			_maxDist2;
-
-
 
     ConstraintT(Particle_ptr a, Particle_ptr b, ConstraintType type = kConstraintTypeCustom):
         _a(a), _b(b), _type(type), _isOn(true), _isDead(false)

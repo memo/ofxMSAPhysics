@@ -277,8 +277,8 @@ public:
             glColor4f(0.5, 0.5, 0.5, 0.5);
             for(int i=0; i<world->numberOfSprings(); i++) {
                 Spring3D_ptr spring = world->getSpring(i);
-                Particle3D_ptr a = spring->getOneEnd();
-                Particle3D_ptr b = spring->getTheOtherEnd();
+                Particle3D_ptr a = spring->getA();
+                Particle3D_ptr b = spring->getB();
                 ofVec3f vec = b->getPosition() - a->getPosition();
                 float dist = vec.length();
                 float angle = acos( vec.z / dist ) * RAD_TO_DEG;

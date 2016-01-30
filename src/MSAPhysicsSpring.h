@@ -18,24 +18,22 @@ public:
     typedef shared_ptr< AttractionT<T> >      Attraction_ptr;
     typedef shared_ptr< ConstraintT<T> >      Constraint_ptr;
 
-    //    friend class WorldT<T>;
-
     // create an instance of this class and return a smart pointer
     // this is the only way to instantiate this class
     static Spring_ptr create(Particle_ptr a, Particle_ptr b, float strength, float restLength) {
         return Spring_ptr(new SpringT<T>(a, b, strength, restLength));
     }
 
-    Spring_ptr setStrength(float s)                  { _strength = s; return getThis(); }
-    float getStrength() const                           { return _strength; }
+    Spring_ptr          setStrength(float s)            { _strength = s; return getThis(); }
+    float               getStrength() const             { return _strength; }
 
-    Spring_ptr  setForceCap (float c)                { _forceCap = c; return getThis(); }
-    float getForceCap () const                          { return _forceCap; }
+    Spring_ptr          setForceCap (float c)           { _forceCap = c; return getThis(); }
+    float               getForceCap () const            { return _forceCap; }
 
-    Spring_ptr  setRestLength(float l)               { _restLength = l; return getThis(); }
-    float getRestLength() const                         { return _restLength; }
+    Spring_ptr          setRestLength(float l)          { _restLength = l; return getThis(); }
+    float               getRestLength() const           { return _restLength; }
 
-    Spring_ptr getThis()                            { return _isInited ? dynamic_pointer_cast< SpringT<T> >(this->shared_from_this()) : Spring_ptr(); }
+    Spring_ptr          getThis()                       { return _isInited ? dynamic_pointer_cast< SpringT<T> >(this->shared_from_this()) : Spring_ptr(); }
 
     void solve() override {
         T delta = this->_b->getPosition() - this->_a->getPosition();

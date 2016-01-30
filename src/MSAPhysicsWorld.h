@@ -17,56 +17,52 @@ public:
     typedef shared_ptr< AttractionT<T> >      Attraction_ptr;
     typedef shared_ptr< ConstraintT<T> >      Constraint_ptr;
 
-    //    friend class ParticleT<T>;
+    static World_ptr create()                           { return World_ptr(new WorldT<T>); }
 
-    ~WorldT() { clear(); }
+    Particle_ptr    makeParticle(const T& pos = T(), float mass = 1.0f, float drag = 1.0f);
+    Spring_ptr      makeSpring(Particle_ptr a, Particle_ptr b, float strength, float restLength);
+    Attraction_ptr  makeAttraction(Particle_ptr a, Particle_ptr b, float strength);
 
-    static World_ptr create()                        { return World_ptr(new WorldT<T>); }
+    Particle_ptr    addParticle(Particle_ptr p)         { _particles.push_back(p); return p; }
+    Constraint_ptr  addConstraint(Constraint_ptr c)     { _constraints[c->type()].push_back(c); return c; }
 
-    Particle_ptr     makeParticle(const T& pos = T(), float mass = 1.0f, float drag = 1.0f);
-    Spring_ptr		makeSpring(Particle_ptr a, Particle_ptr b, float strength, float restLength);
-    Attraction_ptr	makeAttraction(Particle_ptr a, Particle_ptr b, float strength);
-
-    Particle_ptr     addParticle(Particle_ptr p)        { _particles.push_back(p); return p; }
-    Constraint_ptr   addConstraint(Constraint_ptr c)    { _constraints[c->type()].push_back(c); return c; }
-
-    Particle_ptr     getParticle(long i)             { return i < numberOfParticles() ? _particles[i] : nullptr; }
-    Spring_ptr		getSpring(long i)               { return i < numberOfSprings() ? dynamic_pointer_cast< SpringT<T> >(_constraints[kConstraintTypeSpring][i]) : nullptr; }
-    Attraction_ptr	getAttraction(long i)           { return i < numberOfAttractions() ? dynamic_pointer_cast< AttractionT<T> >(_constraints[kConstraintTypeAttraction][i]) : nullptr; }
+    Particle_ptr    getParticle(long i)                 { return i < numberOfParticles() ? _particles[i] : nullptr; }
+    Spring_ptr      getSpring(long i)                   { return i < numberOfSprings() ? dynamic_pointer_cast< SpringT<T> >(_constraints[kConstraintTypeSpring][i]) : nullptr; }
+    Attraction_ptr	getAttraction(long i)               { return i < numberOfAttractions() ? dynamic_pointer_cast< AttractionT<T> >(_constraints[kConstraintTypeAttraction][i]) : nullptr; }
 
     // findConstraint between particles. these do a search, so not instant, has some overheads
-    Constraint_ptr	findConstraint(weak_ptr<ParticleT<T>> a, int constraintType);
+    Constraint_ptr  findConstraint(weak_ptr<ParticleT<T>> a, int constraintType);
     Constraint_ptr	findConstraint(weak_ptr<ParticleT<T>> a, weak_ptr<ParticleT<T>> b, int constraintType);
 
-    long				numberOfParticles()             { return _particles.size(); }
-    long				numberOfCustomConstraints()     { return _constraints[kConstraintTypeCustom].size(); }
-    long				numberOfSprings()               { return _constraints[kConstraintTypeSpring].size(); }
-    long				numberOfAttractions()           { return _constraints[kConstraintTypeAttraction].size(); }
+    long			numberOfParticles()                 { return _particles.size(); }
+    long			numberOfCustomConstraints()         { return _constraints[kConstraintTypeCustom].size(); }
+    long			numberOfSprings()                   { return _constraints[kConstraintTypeSpring].size(); }
+    long			numberOfAttractions()               { return _constraints[kConstraintTypeAttraction].size(); }
 
     // Drag. 1: no drag at all, 0.9: quite a lot of drag, 0: particles can't even move
-    World_ptr		setDrag(float drag = 0.99f)     { _params->drag = drag; return getThis(); }
-    float               getDrag() const                 { return _params->drag; }
+    World_ptr		setDrag(float drag = 0.99f)         { _params->drag = drag; return getThis(); }
+    float           getDrag() const                     { return _params->drag; }
 
     // set gravity (y component only)
     World_ptr		setGravity(float gy = 0);
 
     // set gravity (full vector)
     World_ptr		setGravity(const T& g);
-    const T&			getGravity() const              { return _params->gravity; }
+    const T&		getGravity() const                  { return _params->gravity; }
 
-    World_ptr		setTimeStep(float t)            { _params->timeStep = t; _params->timeStep2 = t*t; return getThis(); }
-    World_ptr		setNumIterations(float n = 20)  { _params->numIterations = n; return getThis(); }
+    World_ptr		setTimeStep(float t)                { _params->timeStep = t; _params->timeStep2 = t*t; return getThis(); }
+    World_ptr		setNumIterations(float n = 20)      { _params->numIterations = n; return getThis(); }
 
     // for optimized collision, set world dimensions first
-    World_ptr		setWorldMin(const T& worldMin)  { _params->worldMin = worldMin; updateWorldSize(); return getThis(); }
-    World_ptr		setWorldMax(const T& worldMax)  { _params->worldMax = worldMax; updateWorldSize(); return getThis(); }
+    World_ptr		setWorldMin(const T& worldMin)      { _params->worldMin = worldMin; updateWorldSize(); return getThis(); }
+    World_ptr		setWorldMax(const T& worldMax)      { _params->worldMax = worldMax; updateWorldSize(); return getThis(); }
+    World_ptr		clearWorldSize()                    { _params->doWorldEdges = false; disableCollision(); return getThis(); }
     World_ptr		setWorldSize(const T& worldMin, const T& worldMax)  { setWorldMin(worldMin); setWorldMax(worldMax); return getThis(); }
-    World_ptr		clearWorldSize()                { _params->doWorldEdges = false; disableCollision(); return getThis(); }
 
     // and then set sector size (or count)
-    World_ptr		enableCollision()               { _params->isCollisionEnabled = true; return getThis(); }
-    World_ptr		disableCollision()              { _params->isCollisionEnabled = false; return getThis(); }
-    bool				isCollisionEnabled() const      { return _params->isCollisionEnabled; }
+    World_ptr		enableCollision()                   { _params->isCollisionEnabled = true; return getThis(); }
+    World_ptr		disableCollision()                  { _params->isCollisionEnabled = false; return getThis(); }
+    bool			isCollisionEnabled() const          { return _params->isCollisionEnabled; }
     World_ptr		setSectorCount(int count);		// set the number of sectors (will be equal in each axis)
     World_ptr		setSectorCount(T vCount);// set the number of sectors in each axis
 
@@ -87,9 +83,9 @@ public:
     World_ptr			setReplayFilename(string f);
 #endif
 
-    Params_ptr			getParams() const           { return _params; }
+//    Params_ptr			getParams() const               { return _params; }
 
-    World_ptr           getThis()                   { return _isInited ? this->shared_from_this() : World_ptr(); }
+    World_ptr           getThis()                       { return _isInited ? this->shared_from_this() : World_ptr(); }
 
 protected:
     Params_ptr                           _params;

@@ -18,9 +18,6 @@ public:
     typedef shared_ptr< AttractionT<T> >      Attraction_ptr;
     typedef shared_ptr< ConstraintT<T> >      Constraint_ptr;
 
-    // allow World to access private/protected members
-    //   friend class WorldT<T>;
-
     // virtual destructor needed in case we extend the class and delete via the base class
     virtual ~ParticleT() {}
 
@@ -32,50 +29,50 @@ public:
 
     virtual void        init(const T& pos = T(), float mass = 1.0f, float drag = 1.0f);
 
-    Particle_ptr     setMass(float t = 1);
+    Particle_ptr        setMass(float t = 1);
     float               getMass() const                 { return _mass; }
     float               getInvMass() const              { return _invMass; }
 
-    Particle_ptr     setDrag(float t = 1)            { _drag = t; return getThis(); }
+    Particle_ptr        setDrag(float t = 1)            { _drag = t; return getThis(); }
     float               getDrag() const                 { return _drag; }
 
-    Particle_ptr     setBounce(float t = 1)          { _bounce = t; return getThis(); }
+    Particle_ptr        setBounce(float t = 1)          { _bounce = t; return getThis(); }
     float               getBounce()                     { return _bounce; }
 
-    Particle_ptr     setRadius(float t = 15)         { _radius = t; return getThis(); }
+    Particle_ptr        setRadius(float t = 15)         { _radius = t; return getThis(); }
     float               getRadius()                     { return _radius; }
 
     // collision methods
-    Particle_ptr     enableCollision()               { _collisionEnabled = true; return getThis(); }
-    Particle_ptr     disableCollision()              { _collisionEnabled = false; return getThis(); }
+    Particle_ptr        enableCollision()               { _collisionEnabled = true; return getThis(); }
+    Particle_ptr        disableCollision()              { _collisionEnabled = false; return getThis(); }
     bool                hasCollision() const            { return _collisionEnabled; }
 
     // passive particles do not collied with each other, only with non-passive (collision must be enabled)
-    Particle_ptr     enablePassiveCollision()        { _passiveCollision = true; return getThis(); }
-    Particle_ptr     disablePassiveCollision()       { _passiveCollision = false; return getThis(); }
+    Particle_ptr        enablePassiveCollision()        { _passiveCollision = true; return getThis(); }
+    Particle_ptr        disablePassiveCollision()       { _passiveCollision = false; return getThis(); }
     bool                hasPassiveCollision() const     { return _passiveCollision; }
 
     bool                isFixed() const                 { return (_isFixed); }
     bool                isFree() const                  { return (!_isFixed); }
-    Particle_ptr     makeFixed()                     { _isFixed = true; return getThis(); }
-    Particle_ptr     makeFree()                      { _oldPos = _pos; _isFixed = false; return getThis(); }
+    Particle_ptr        makeFixed()                     { _isFixed = true; return getThis(); }
+    Particle_ptr        makeFree()                      { _oldPos = _pos; _isFixed = false; return getThis(); }
 
     // quick way of enabling (collision and update) and disabling
-    Particle_ptr     enable()                        { enableCollision(); makeFree(); return getThis(); }
-    Particle_ptr     disable()                       { disableCollision(); makeFixed(); return getThis(); }
+    Particle_ptr        enable()                        { enableCollision(); makeFree(); return getThis(); }
+    Particle_ptr        disable()                       { disableCollision(); makeFixed(); return getThis(); }
 
     // move the particle
     // if preserveVelocity == true, the particle will move to new position and keep it's old velocity
     // if preserveVelocity == false, the particle will move to new position but gain the velocity of the displacement
-    Particle_ptr     moveTo(const T& targetPos, bool preserveVelocity = true);
-    Particle_ptr     moveBy(const T& offset, bool preserveVelocity = true);
-    Particle_ptr     setOldPosition(const T& o);
+    Particle_ptr        moveTo(const T& targetPos, bool preserveVelocity = true);
+    Particle_ptr        moveBy(const T& offset, bool preserveVelocity = true);
+    Particle_ptr        setOldPosition(const T& o);
 
-    T                getPosition() const             { return _pos; }
+    T                   getPosition() const             { return _pos; }
 
-    Particle_ptr     setVelocity(const T& vel)       { _oldPos = _pos - vel; return getThis(); }
-    Particle_ptr     addVelocity(const T& vel)       { _oldPos -= vel; return getThis(); }
-    T                getVelocity() const             { return _pos - _oldPos; }
+    Particle_ptr        setVelocity(const T& vel)       { _oldPos = _pos - vel; return getThis(); }
+    Particle_ptr        addVelocity(const T& vel)       { _oldPos -= vel; return getThis(); }
+    T                   getVelocity() const             { return _pos - _oldPos; }
 
     // override these functions if you create your own particle type with custom behaviour and/or drawing
     virtual void        update() {}		// called every frame in world::update();
@@ -88,9 +85,7 @@ public:
     void                kill()                          { _isDead = true; }
     bool                isDead() const                  { return _isDead; }
 
-    Particle_ptr           getThis()                   { return _isInited ? this->shared_from_this() : Particle_ptr(); }
-
-    //    Params_ptr          getParams()                      { return _params; }
+    Particle_ptr        getThis()                       { return _isInited ? this->shared_from_this() : Particle_ptr(); }
 
     // custom void* which you can use to store any kind of custom data without extending the class
     // very old school, i might scrap it
@@ -100,9 +95,6 @@ public:
     unsigned int        collisionPlane;
 
 protected:
-    //    Params_ptr      _params;
-    //    weak_ptr<WorldT<T>> _world;
-
     T				_pos;
     T				_oldPos;
     float			_mass, _invMass;
@@ -114,7 +106,6 @@ protected:
     bool			_isFixed;
     bool			_collisionEnabled;
     bool            _passiveCollision;
-
     bool            _isInited;
 
     ParticleT(const T& pos, float mass = 1.0f, float drag = 1.0f);
