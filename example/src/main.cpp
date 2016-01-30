@@ -87,6 +87,7 @@ public:
 
         // initialize our physics world
         world = World3D::create();
+
         mouseNode = world->makeParticle();
 
         //	world->verbose = true;			// dump activity to log

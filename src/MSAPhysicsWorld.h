@@ -459,7 +459,7 @@ void WorldT<T>::updateParticles() {
             bool collided = false;
             T vel(p->getVelocity());
             T pos(p->getPosition());
-            T oldPos;
+            T oldPos(pos);
             float radius = p->getRadius();
             float bounce = p->getBounce();
             for(int i=0; i<T::DIM; i++) {
@@ -476,10 +476,12 @@ void WorldT<T>::updateParticles() {
                     collided = true;
                 }
             }
-            p->moveTo(pos);
-            p->setOldPosition(oldPos);
 
-            if(collided) p->collidedWithEdgeOfWorld(p->getVelocity() - vel);
+            if(collided) {
+                p->moveTo(pos);
+                p->setOldPosition(oldPos);
+                p->collidedWithEdgeOfWorld(p->getVelocity() - vel);
+            }
         }
 
         // find which sector particle is in
