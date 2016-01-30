@@ -44,7 +44,7 @@ public:
     long				numberOfAttractions()           { return _constraints[kConstraintTypeAttraction].size(); }
 
     // Drag. 1: no drag at all, 0.9: quite a lot of drag, 0: particles can't even move
-    World_ptr		setDrag(float drag = 0.99f)     { _params->drag = drag; return this->shared_from_this(); }
+    World_ptr		setDrag(float drag = 0.99f)     { _params->drag = drag; return getThis(); }
     float               getDrag() const                 { return _params->drag; }
 
     // set gravity (y component only)
@@ -54,18 +54,18 @@ public:
     World_ptr		setGravity(const T& g);
     const T&			getGravity() const              { return _params->gravity; }
 
-    World_ptr		setTimeStep(float t)            { _params->timeStep = t; _params->timeStep2 = t*t; return this->shared_from_this(); }
-    World_ptr		setNumIterations(float n = 20)  { _params->numIterations = n; return this->shared_from_this(); }
+    World_ptr		setTimeStep(float t)            { _params->timeStep = t; _params->timeStep2 = t*t; return getThis(); }
+    World_ptr		setNumIterations(float n = 20)  { _params->numIterations = n; return getThis(); }
 
     // for optimized collision, set world dimensions first
-    World_ptr		setWorldMin(const T& worldMin)  { _params->worldMin = worldMin; updateWorldSize(); return this->shared_from_this(); }
-    World_ptr		setWorldMax(const T& worldMax)  { _params->worldMax = worldMax; updateWorldSize(); return this->shared_from_this(); }
-    World_ptr		setWorldSize(const T& worldMin, const T& worldMax)  { setWorldMin(worldMin); setWorldMax(worldMax); return this->shared_from_this(); }
-    World_ptr		clearWorldSize()                { _params->doWorldEdges = false; disableCollision(); return this->shared_from_this(); }
+    World_ptr		setWorldMin(const T& worldMin)  { _params->worldMin = worldMin; updateWorldSize(); return getThis(); }
+    World_ptr		setWorldMax(const T& worldMax)  { _params->worldMax = worldMax; updateWorldSize(); return getThis(); }
+    World_ptr		setWorldSize(const T& worldMin, const T& worldMax)  { setWorldMin(worldMin); setWorldMax(worldMax); return getThis(); }
+    World_ptr		clearWorldSize()                { _params->doWorldEdges = false; disableCollision(); return getThis(); }
 
     // and then set sector size (or count)
-    World_ptr		enableCollision()               { _params->isCollisionEnabled = true; return this->shared_from_this(); }
-    World_ptr		disableCollision()              { _params->isCollisionEnabled = false; return this->shared_from_this(); }
+    World_ptr		enableCollision()               { _params->isCollisionEnabled = true; return getThis(); }
+    World_ptr		disableCollision()              { _params->isCollisionEnabled = false; return getThis(); }
     bool				isCollisionEnabled() const      { return _params->isCollisionEnabled; }
     World_ptr		setSectorCount(int count);		// set the number of sectors (will be equal in each axis)
     World_ptr		setSectorCount(T vCount);// set the number of sectors in each axis
@@ -89,12 +89,15 @@ public:
 
     Params_ptr			getParams() const           { return _params; }
 
+    World_ptr           getThis()                   { return _isInited ? this->shared_from_this() : World_ptr(); }
+
 protected:
     Params_ptr                           _params;
     vector< Particle_ptr >               _particles;
     map<int, vector< Constraint_ptr > >  _constraints;    // key: constraint type, value: vector of constraints
     vector< Sector_ptr >                 _sectors;
 
+    bool _isInited;
 
     WorldT();
 
@@ -120,6 +123,8 @@ protected:
 //--------------------------------------------------------------
 template <typename T>
 WorldT<T>::WorldT() {
+    _isInited = false;
+
     _params = make_shared< ParamsT<T> >();
     setTimeStep(0.000010);
     setDrag();
@@ -134,6 +139,8 @@ WorldT<T>::WorldT() {
     setReplayMode(OFX_MSA_DATA_IDLE);
     setReplayFilename("recordedData/physics/physics");
 #endif
+
+    _isInited = true;
 }
 
 
@@ -212,13 +219,13 @@ typename WorldT<T>::Attraction_ptr WorldT<T>::makeAttraction(Particle_ptr a, Par
 //template <typename T>
 //long WorldT<T>::numberOfAttractions() {
 //    return _constraints[kConstraintTypeAttraction].size();
-//}
+//}_sectors
 
 
 //--------------------------------------------------------------
 //template <typename T>
 //World_ptr WorldT<T>::setDrag(float drag) {
-//    params->drag = drag; return this->shared_from_this();
+//    params->drag = drag; return getThis();
 //}
 
 //--------------------------------------------------------------
@@ -227,7 +234,7 @@ typename WorldT<T>::World_ptr WorldT<T>::setGravity(float gy) {
     T g(T::zero());
     g[1] = gy;
     setGravity(g);
-    return this->shared_from_this();
+    return getThis();
 }
 
 //--------------------------------------------------------------
@@ -235,7 +242,7 @@ template <typename T>
 typename WorldT<T>::World_ptr WorldT<T>::setGravity(const T& g) {
     _params->gravity= g;
     _params->doGravity = _params->gravity.lengthSquared() > 0;
-    return this->shared_from_this();
+    return getThis();
 }
 
 //--------------------------------------------------------------
@@ -247,50 +254,50 @@ typename WorldT<T>::World_ptr WorldT<T>::setGravity(const T& g) {
 //--------------------------------------------------------------
 //template <typename T>
 //World_ptr WorldT<T>::setTimeStep(float t) {
-//    params->timeStep = t; params->timeStep2 = t*t; return this->shared_from_this();
+//    params->timeStep = t; params->timeStep2 = t*t; return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //World_ptr WorldT<T>::setNumIterations(float numIterations) {
-//    params->numIterations = numIterations; return this->shared_from_this();
+//    params->numIterations = numIterations; return getThis();
 //}
 
 
 //template <typename T>
 //World_ptr WorldT<T>::setWorldMin(const T& worldMin) {
-//    _params->worldMin = worldMin; updateWorldSize(); return this->shared_from_this();
+//    _params->worldMin = worldMin; updateWorldSize(); return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //World_ptr WorldT<T>::setWorldMax(const T& worldMax) {
-//    _params->worldMax = worldMax; updateWorldSize(); return this->shared_from_this();
+//    _params->worldMax = worldMax; updateWorldSize(); return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //World_ptr WorldT<T>::setWorldSize(const T& worldMin, const T& worldMax) {
-//    setWorldMin(worldMin); setWorldMax(worldMax); return this->shared_from_this();
+//    setWorldMin(worldMin); setWorldMax(worldMax); return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //World_ptr WorldT<T>::clearWorldSize() {
-//    _params->doWorldEdges = false; disableCollision(); return this->shared_from_this();
+//    _params->doWorldEdges = false; disableCollision(); return getThis();
 //}
 
 
 //--------------------------------------------------------------
 //template <typename T>
 //World_ptr WorldT<T>::enableCollision() {
-//    _params->isCollisionEnabled = true; return this->shared_from_this();
+//    _params->isCollisionEnabled = true; return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //World_ptr WorldT<T>::disableCollision() {
-//    _params->isCollisionEnabled = false; return this->shared_from_this();
+//    _params->isCollisionEnabled = false; return getThis();
 //}
 
 //--------------------------------------------------------------
@@ -305,7 +312,7 @@ typename WorldT<T>::World_ptr WorldT<T>::setSectorCount(int count) {
     T r;
     for(int i=0; i<T::DIM; i++) r[i] = count;
     setSectorCount(r);
-    return this->shared_from_this();
+    return getThis();
 }
 
 //--------------------------------------------------------------
@@ -324,8 +331,8 @@ typename WorldT<T>::World_ptr WorldT<T>::setSectorCount(T vCount) {
 
     int numSectors = 1;
     for(int i=0; i<T::DIM; i++) numSectors *= _params->sectorCount[i];
-    //    for(int i=0; i<numSectors; i++) _sectors.push_back(SectorT<T>::create()); // FIX
-    return this->shared_from_this();
+    for(int i=0; i<numSectors; i++) _sectors.push_back(SectorT<T>::create());
+    return getThis();
 }
 
 
@@ -340,7 +347,7 @@ typename WorldT<T>::World_ptr WorldT<T>::setParticleCount(long i) {
     //	if(_replayMode == OFX_MSA_DATA_SAVE)
     _recorder.setSize(i);
 #endif
-    return this->shared_from_this();
+    return getThis();
 }
 
 
@@ -348,21 +355,21 @@ typename WorldT<T>::World_ptr WorldT<T>::setParticleCount(long i) {
 template <typename T>
 typename WorldT<T>::World_ptr WorldT<T>::setCustomConstraintCount(long i){
     _constraints[kConstraintTypeCustom].reserve(i);
-    return this->shared_from_this();
+    return getThis();
 }
 
 //--------------------------------------------------------------
 template <typename T>
 typename WorldT<T>::World_ptr WorldT<T>::setSpringCount(long i){
     _constraints[kConstraintTypeSpring].reserve(i);
-    return this->shared_from_this();
+    return getThis();
 }
 
 //--------------------------------------------------------------
 template <typename T>
 typename WorldT<T>::World_ptr WorldT<T>::setAttractionCount(long i){
     _constraints[kConstraintTypeAttraction].reserve(i);
-    return this->shared_from_this();
+    return getThis();
 }
 
 
@@ -371,7 +378,7 @@ template <typename T>
 void WorldT<T>::clear() {
     _particles.clear();
     _constraints.clear();
-    _sectors.clear();   // TODO: this will clear the sectors as well. maybe we just want to empty the sectors, not erase them
+    for(auto s: _sectors) s->clear();
 }
 
 

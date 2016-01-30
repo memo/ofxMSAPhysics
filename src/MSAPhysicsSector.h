@@ -21,15 +21,15 @@ public:
 
     void checkSectorCollisions();
     void addParticle(Particle_ptr p)          { _particles.push_back(p); }
-    void clear()                                        { _particles.clear(); }
+    void clear()                              { _particles.clear(); }
 
     //	void	checkParticle(ParticleT *p);
 
 protected:
+    SectorT() {}
+
     bool checkCollisionBetween(shared_ptr< ParticleT<T> > a, shared_ptr< ParticleT<T> > b);
     vector< Particle_ptr >	_particles;
-
-    SectorT() {}
 };
 
 

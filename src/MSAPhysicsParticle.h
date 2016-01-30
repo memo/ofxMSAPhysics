@@ -36,33 +36,33 @@ public:
     float               getMass() const                 { return _mass; }
     float               getInvMass() const              { return _invMass; }
 
-    Particle_ptr     setDrag(float t = 1)            { _drag = t; return this->shared_from_this(); }
+    Particle_ptr     setDrag(float t = 1)            { _drag = t; return getThis(); }
     float               getDrag() const                 { return _drag; }
 
-    Particle_ptr     setBounce(float t = 1)          { _bounce = t; return this->shared_from_this(); }
+    Particle_ptr     setBounce(float t = 1)          { _bounce = t; return getThis(); }
     float               getBounce()                     { return _bounce; }
 
-    Particle_ptr     setRadius(float t = 15)         { _radius = t; return this->shared_from_this(); }
+    Particle_ptr     setRadius(float t = 15)         { _radius = t; return getThis(); }
     float               getRadius()                     { return _radius; }
 
     // collision methods
-    Particle_ptr     enableCollision()               { _collisionEnabled = true; return this->shared_from_this(); }
-    Particle_ptr     disableCollision()              { _collisionEnabled = false; return this->shared_from_this(); }
+    Particle_ptr     enableCollision()               { _collisionEnabled = true; return getThis(); }
+    Particle_ptr     disableCollision()              { _collisionEnabled = false; return getThis(); }
     bool                hasCollision() const            { return _collisionEnabled; }
 
     // passive particles do not collied with each other, only with non-passive (collision must be enabled)
-    Particle_ptr     enablePassiveCollision()        { _passiveCollision = true; return this->shared_from_this(); }
-    Particle_ptr     disablePassiveCollision()       { _passiveCollision = false; return this->shared_from_this(); }
+    Particle_ptr     enablePassiveCollision()        { _passiveCollision = true; return getThis(); }
+    Particle_ptr     disablePassiveCollision()       { _passiveCollision = false; return getThis(); }
     bool                hasPassiveCollision() const     { return _passiveCollision; }
 
     bool                isFixed() const                 { return (_isFixed); }
     bool                isFree() const                  { return (!_isFixed); }
-    Particle_ptr     makeFixed()                     { _isFixed = true; return this->shared_from_this(); }
-    Particle_ptr     makeFree()                      { _oldPos = _pos; _isFixed = false; return this->shared_from_this(); }
+    Particle_ptr     makeFixed()                     { _isFixed = true; return getThis(); }
+    Particle_ptr     makeFree()                      { _oldPos = _pos; _isFixed = false; return getThis(); }
 
     // quick way of enabling (collision and update) and disabling
-    Particle_ptr     enable()                        { enableCollision(); makeFree(); return this->shared_from_this(); }
-    Particle_ptr     disable()                       { disableCollision(); makeFixed(); return this->shared_from_this(); }
+    Particle_ptr     enable()                        { enableCollision(); makeFree(); return getThis(); }
+    Particle_ptr     disable()                       { disableCollision(); makeFixed(); return getThis(); }
 
     // move the particle
     // if preserveVelocity == true, the particle will move to new position and keep it's old velocity
@@ -71,11 +71,11 @@ public:
     Particle_ptr     moveBy(const T& offset, bool preserveVelocity = true);
     Particle_ptr     setOldPosition(const T& o);
 
-    const T&         getPosition() const             { return _pos; }
+    T                getPosition() const             { return _pos; }
 
-    Particle_ptr     setVelocity(const T& vel)       { _oldPos = _pos - vel; return this->shared_from_this(); }
-    Particle_ptr     addVelocity(const T& vel)       { _oldPos -= vel; return this->shared_from_this(); }
-    const T&         getVelocity() const             { return _pos - _oldPos; }
+    Particle_ptr     setVelocity(const T& vel)       { _oldPos = _pos - vel; return getThis(); }
+    Particle_ptr     addVelocity(const T& vel)       { _oldPos -= vel; return getThis(); }
+    T                getVelocity() const             { return _pos - _oldPos; }
 
     // override these functions if you create your own particle type with custom behaviour and/or drawing
     virtual void        update() {}		// called every frame in world::update();
@@ -88,7 +88,7 @@ public:
     void                kill()                          { _isDead = true; }
     bool                isDead() const                  { return _isDead; }
 
-
+    Particle_ptr           getThis()                   { return _isInited ? this->shared_from_this() : Particle_ptr(); }
 
     //    Params_ptr          getParams()                      { return _params; }
 
@@ -114,6 +114,8 @@ protected:
     bool			_isFixed;
     bool			_collisionEnabled;
     bool            _passiveCollision;
+
+    bool            _isInited;
 
     ParticleT(const T& pos, float mass = 1.0f, float drag = 1.0f);
     ParticleT(ParticleT& p);
@@ -154,7 +156,7 @@ template <typename T>
 typename ParticleT<T>::Particle_ptr ParticleT<T>::setMass(float m) {
     _mass = std::max(m, 0.00001f);    // can't remember why I did this, lazy way to avoid divide-by-zero later?
     _invMass = _mass > 0 ? 1.0f/_mass : 0;
-    return this->shared_from_this();
+    return getThis();
 }
 
 //--------------------------------------------------------------
@@ -185,7 +187,7 @@ typename ParticleT<T>::Particle_ptr ParticleT<T>::setMass(float m) {
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::setBounce(float t) {
-//    _bounce = t; return this->shared_from_this();
+//    _bounce = t; return getThis();
 //}
 
 //--------------------------------------------------------------
@@ -198,7 +200,7 @@ typename ParticleT<T>::Particle_ptr ParticleT<T>::setMass(float m) {
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::setRadius(float t) {
-//    _radius = t; return this->shared_from_this();
+//    _radius = t; return getThis();
 //}
 
 //--------------------------------------------------------------
@@ -222,13 +224,13 @@ typename ParticleT<T>::Particle_ptr ParticleT<T>::setMass(float m) {
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::makeFixed() {
-//    _isFixed = true; return this->shared_from_this();
+//    _isFixed = true; return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::makeFree() {
-//    _oldPos = _pos; _isFixed = false; return this->shared_from_this();
+//    _oldPos = _pos; _isFixed = false; return getThis();
 //}
 
 //--------------------------------------------------------------
@@ -236,7 +238,7 @@ template <typename T>
 typename ParticleT<T>::Particle_ptr ParticleT<T>::moveTo(const T& targetPos, bool preserveVelocity) {
     T diff(targetPos - _pos);
     moveBy(diff, preserveVelocity);
-    return this->shared_from_this();
+    return getThis();
 }
 
 //--------------------------------------------------------------
@@ -244,14 +246,14 @@ template <typename T>
 typename ParticleT<T>::Particle_ptr ParticleT<T>::moveBy(const T& offset, bool preserveVelocity) {
     _pos += offset;
     if(preserveVelocity) _oldPos += offset;
-    return this->shared_from_this();
+    return getThis();
 }
 
 //--------------------------------------------------------------
 template <typename T>
 typename ParticleT<T>::Particle_ptr ParticleT<T>::setOldPosition(const T& p) {
     _oldPos = p;
-    return this->shared_from_this();
+    return getThis();
 }
 
 //--------------------------------------------------------------
@@ -263,13 +265,13 @@ typename ParticleT<T>::Particle_ptr ParticleT<T>::setOldPosition(const T& p) {
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::setVelocity(const T& vel) {
-//    _oldPos = _pos - vel; return this->shared_from_this();
+//    _oldPos = _pos - vel; return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::addVelocity(const T& vel) {
-//    _oldPos -= vel; return this->shared_from_this();
+//    _oldPos -= vel; return getThis();
 //}
 
 //--------------------------------------------------------------
@@ -294,29 +296,33 @@ typename ParticleT<T>::Particle_ptr ParticleT<T>::setOldPosition(const T& p) {
 //--------------------------------------------------------------
 template <typename T>
 ParticleT<T>::ParticleT(const T& pos, float mass, float drag) {
+    _isInited = false;
     init(pos, mass, drag);
+    _isInited = true;
 }
 
 //--------------------------------------------------------------
 template <typename T>
 ParticleT<T>::ParticleT(ParticleT<T> &p) {
+    _isInited = false;
     init(p.getPosition(), p._mass, p._drag);
     _isFixed = p._isFixed;
     setBounce(p._bounce);
     setRadius(p._radius);
+    _isInited = true;
 }
 
 
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::enableCollision(){
-//    _collisionEnabled = true; return this->shared_from_this();
+//    _collisionEnabled = true; return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::disableCollision() {
-//    _collisionEnabled = false; return this->shared_from_this();
+//    _collisionEnabled = false; return getThis();
 //}
 
 //--------------------------------------------------------------
@@ -328,13 +334,13 @@ ParticleT<T>::ParticleT(ParticleT<T> &p) {
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::enablePassiveCollision() {
-//    _passiveCollision = true; return this->shared_from_this();
+//    _passiveCollision = true; return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::disablePassiveCollision() {
-//    _passiveCollision = false; return this->shared_from_this();
+//    _passiveCollision = false; return getThis();
 //}
 
 //--------------------------------------------------------------
@@ -348,13 +354,13 @@ ParticleT<T>::ParticleT(ParticleT<T> &p) {
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::enable(){
-//    enableCollision(); makeFree(); return this->shared_from_this();
+//    enableCollision(); makeFree(); return getThis();
 //}
 
 //--------------------------------------------------------------
 //template <typename T>
 //Particle_ptr ParticleT<T>::disable() {
-//    disableCollision(); makeFixed(); return this->shared_from_this();
+//    disableCollision(); makeFixed(); return getThis();
 //}
 
 
