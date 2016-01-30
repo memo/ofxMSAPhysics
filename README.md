@@ -1,5 +1,20 @@
 ofxMSAPhysics
 =====================================
+Major Updates
+-------
+As of v4 there are radical, long awaited updates under the hood:
+- I've ditched my own smart pointer class (ofxObjCPointer) in favour of std::shared_ptr and std::weak_ptr. It's much nicer.
+- This has had a significant effec on the API. I've made it not possible to create particles or constraints directly, or on the stack. But you need to use a factory method.
+- 'using' aliases for templated class smart pointers
+- removed 2d/3d convenience typedefs for clases (Particle2D, World3D etc) and replaced them with typedefs for the points (Particle2D_ptr, World3D_ptr) . 
+
+	Particle3D_Ptr p = Particle3D::create(...);
+	world->addParticle(p);
+or
+
+	Particle3D_Ptr p = world->createParticle(...);
+
+
 
 Introduction
 ------------

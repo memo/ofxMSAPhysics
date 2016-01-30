@@ -4,683 +4,600 @@
 
 
 namespace msa {
-	
-	namespace physics {
-		
-		template <typename T>
-		class WorldT : public ParticleUpdatableT<T> {
-			
-		public:
-			friend class ParticleT<T>;
-			
-			bool				verbose;
-			
-			WorldT();
-			~WorldT();
-			
-			ParticleT<T>*		makeParticle(T pos, float m = 1.0f, float d = 1.0f);
-			SpringT<T>*			makeSpring(ParticleT<T> *a, ParticleT<T> *b, float _strength, float _restLength);
-			AttractionT<T>*		makeAttraction(ParticleT<T> *a, ParticleT<T> *b, float _strength);
-			
-			// this method retains the particle, so you should release() it after adding (obj-c style)
-			ParticleT<T>*		addParticle(ParticleT<T> *p);
-			
-			// this method retains the constraint, so you should release it after adding (obj-c style)
-			ConstraintT<T>*		addConstraint(ConstraintT<T> *c);
-			
-			ParticleT<T>*		getParticle(long i);
-			ConstraintT<T>*		getConstraint(long i);			// generally you wouldn't use this but use the ones below
-			SpringT<T>*			getSpring(long i);
-			AttractionT<T>*		getAttraction(long i);
-			
-			long				numberOfParticles();
-			long				numberOfConstraints();		// all constraints: springs, attractions and user created
-			long				numberOfSprings();			// only springs
-			long				numberOfAttractions();		// only attractions
-			
-			WorldT<T>*			setDrag(float drag = 0.99);					// set the drag. 1: no drag at all, 0.9: quite a lot of drag, 0: particles can't even move
-			WorldT<T>*			setGravity(float gy = 0);					// set gravity (y component only)
-			WorldT<T>*			setGravity(T g);						// set gravity (full vector)
-			T&					getGravity();
-			WorldT<T>*			setTimeStep(float timeStep);
-			WorldT<T>*			setNumIterations(float numIterations = 20);	// default value
-			
-			// for optimized collision, set world dimensions first
-			WorldT<T>*			setWorldMin(T worldMin);
-			WorldT<T>*			setWorldMax(T worldMax);
-			WorldT<T>*			setWorldSize(T worldMin, T worldMax);
-			WorldT<T>*			clearWorldSize();
-			
-			// and then set sector size (or count)
-			WorldT<T>*			enableCollision();
-			WorldT<T>*			disableCollision();
-			bool				isCollisionEnabled();
-			WorldT<T>*			setSectorCount(int count);		// set the number of sectors (will be equal in each axis)
-			WorldT<T>*			setSectorCount(T vCount);	// set the number of sectors in each axis
-			
-			// preallocate buffers if you know how big they need to be (they grow automatically if need be)
-			WorldT<T>*			setParticleCount(long i);
-			WorldT<T>*			setConstraintCount(long i);
-			WorldT<T>*			setSpringCount(long i);
-			WorldT<T>*			setAttractionCount(long i);
-			
-			
-			void clear();
-			void update(int frameNum = -1);
-			void draw();
-			void debugDraw();
-			
+namespace physics {
+
+template <typename T>
+class WorldT : public enable_shared_from_this< WorldT<T> > {
+public:
+    typedef shared_ptr< WorldT<T> >           World_ptr;
+    typedef shared_ptr< SectorT<T> >          Sector_ptr;
+    typedef shared_ptr< ParamsT<T> >          Params_ptr;
+    typedef shared_ptr< ParticleT<T> >        Particle_ptr;
+    typedef shared_ptr< SpringT<T> >          Spring_ptr;
+    typedef shared_ptr< AttractionT<T> >      Attraction_ptr;
+    typedef shared_ptr< ConstraintT<T> >      Constraint_ptr;
+
+    //    friend class ParticleT<T>;
+
+    ~WorldT() { clear(); }
+
+    static World_ptr create()                        { return World_ptr(new WorldT<T>); }
+
+    Particle_ptr     makeParticle(const T& pos = T(), float mass = 1.0f, float drag = 1.0f);
+    Spring_ptr		makeSpring(Particle_ptr a, Particle_ptr b, float strength, float restLength);
+    Attraction_ptr	makeAttraction(Particle_ptr a, Particle_ptr b, float strength);
+
+    Particle_ptr     addParticle(Particle_ptr p)        { _particles.push_back(p); return p; }
+    Constraint_ptr   addConstraint(Constraint_ptr c)    { _constraints[c->type()].push_back(c); return c; }
+
+    Particle_ptr     getParticle(long i)             { return i < numberOfParticles() ? _particles[i] : nullptr; }
+    Spring_ptr		getSpring(long i)               { return i < numberOfSprings() ? dynamic_pointer_cast< SpringT<T> >(_constraints[kConstraintTypeSpring][i]) : nullptr; }
+    Attraction_ptr	getAttraction(long i)           { return i < numberOfAttractions() ? dynamic_pointer_cast< AttractionT<T> >(_constraints[kConstraintTypeAttraction][i]) : nullptr; }
+
+    // findConstraint between particles. these do a search, so not instant, has some overheads
+    Constraint_ptr	findConstraint(weak_ptr<ParticleT<T>> a, int constraintType);
+    Constraint_ptr	findConstraint(weak_ptr<ParticleT<T>> a, weak_ptr<ParticleT<T>> b, int constraintType);
+
+    long				numberOfParticles()             { return _particles.size(); }
+    long				numberOfCustomConstraints()     { return _constraints[kConstraintTypeCustom].size(); }
+    long				numberOfSprings()               { return _constraints[kConstraintTypeSpring].size(); }
+    long				numberOfAttractions()           { return _constraints[kConstraintTypeAttraction].size(); }
+
+    // Drag. 1: no drag at all, 0.9: quite a lot of drag, 0: particles can't even move
+    World_ptr		setDrag(float drag = 0.99f)     { _params->drag = drag; return this->shared_from_this(); }
+    float               getDrag() const                 { return _params->drag; }
+
+    // set gravity (y component only)
+    World_ptr		setGravity(float gy = 0);
+
+    // set gravity (full vector)
+    World_ptr		setGravity(const T& g);
+    const T&			getGravity() const              { return _params->gravity; }
+
+    World_ptr		setTimeStep(float t)            { _params->timeStep = t; _params->timeStep2 = t*t; return this->shared_from_this(); }
+    World_ptr		setNumIterations(float n = 20)  { _params->numIterations = n; return this->shared_from_this(); }
+
+    // for optimized collision, set world dimensions first
+    World_ptr		setWorldMin(const T& worldMin)  { _params->worldMin = worldMin; updateWorldSize(); return this->shared_from_this(); }
+    World_ptr		setWorldMax(const T& worldMax)  { _params->worldMax = worldMax; updateWorldSize(); return this->shared_from_this(); }
+    World_ptr		setWorldSize(const T& worldMin, const T& worldMax)  { setWorldMin(worldMin); setWorldMax(worldMax); return this->shared_from_this(); }
+    World_ptr		clearWorldSize()                { _params->doWorldEdges = false; disableCollision(); return this->shared_from_this(); }
+
+    // and then set sector size (or count)
+    World_ptr		enableCollision()               { _params->isCollisionEnabled = true; return this->shared_from_this(); }
+    World_ptr		disableCollision()              { _params->isCollisionEnabled = false; return this->shared_from_this(); }
+    bool				isCollisionEnabled() const      { return _params->isCollisionEnabled; }
+    World_ptr		setSectorCount(int count);		// set the number of sectors (will be equal in each axis)
+    World_ptr		setSectorCount(T vCount);// set the number of sectors in each axis
+
+    // preallocate buffers if you know how big they need to be (they grow automatically if need be)
+    World_ptr		setParticleCount(long i);
+    World_ptr		setCustomConstraintCount(long i);
+    World_ptr		setSpringCount(long i);
+    World_ptr		setAttractionCount(long i);
+
+
+    void clear();
+    void update(int frameNum = -1);
+    void draw();
+    void debugDraw();
+
 #ifdef MSAPHYSICS_USE_RECORDER
-			WorldT<T>*			setReplayMode(int i, float playbackScaler = 1.0f);		// when playing back recorded data, optionally scale positions up (so you can record in lores, playback at highres)
-			WorldT<T>*			setReplayFilename(string f);
+    World_ptr			setReplayMode(int i, float playbackScaler = 1.0f);		// when playing back recorded data, optionally scale positions up (so you can record in lores, playback at highres)
+    World_ptr			setReplayFilename(string f);
 #endif
-			
-			ParamsT<T>&			getParams();
-			
-		protected:
-			vector<ParticleT<T>*>	_particles;
-			vector<ConstraintT<T>*>	_constraints[kConstraintTypeCount];
-			vector<SectorT<T>*>		_sectors;
-			
-			ParamsT<T>				params;
-			
-			void					updateParticles();
-			void					updateConstraints();
-			void					updateConstraintsByType(vector<ConstraintT<T>*> constraints);
-			//	void						updateWorldSize();
-			
-			
-			void					checkAllCollisions();
-			
-			ConstraintT<T>*			getConstraint(ParticleT<T> *a, int constraintType);
-			ConstraintT<T>*			getConstraint(ParticleT<T> *a, ParticleT<T> *b, int constraintType);
-			
-			
+
+    Params_ptr			getParams() const           { return _params; }
+
+protected:
+    Params_ptr                           _params;
+    vector< Particle_ptr >               _particles;
+    map<int, vector< Constraint_ptr > >  _constraints;    // key: constraint type, value: vector of constraints
+    vector< Sector_ptr >                 _sectors;
+
+
+    WorldT();
+
+    void	updateParticles();
+    void    updateConstraints();
+    //    void	updateConstraintsByType(vector<Constraint_ptr> constraints);
+
+    void    checkAllCollisions();
+
+    void	updateWorldSize()                           { _params->worldSize = _params->worldMax - _params->worldMin; _params->doWorldEdges	= true; }
+
+
 #ifdef MSAPHYSICS_USE_RECORDER
-			DataRecorder<T>			_recorder;
-			long					_frameCounter;
-			long					_replayMode;
-			float					_playbackScaler;
-			void load(long frameNum);
+    DataRecorder<T>			_recorder;
+    long					_frameCounter;
+    long					_replayMode;
+    float					_playbackScaler;
+    void load(long frameNum);
 #endif
-		};
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>::WorldT() {
-			verbose = false;
-			setTimeStep(0.000010);
-			setDrag();
-			setNumIterations();
-			disableCollision();
-			setGravity();
-			clearWorldSize();
-			setSectorCount(0);
-			
+};
+
+
+//--------------------------------------------------------------
+template <typename T>
+WorldT<T>::WorldT() {
+    _params = make_shared< ParamsT<T> >();
+    setTimeStep(0.000010);
+    setDrag();
+    setNumIterations();
+    disableCollision();
+    setGravity();
+    clearWorldSize();
+    setSectorCount(0);
+
 #ifdef MSAPHYSICS_USE_RECORDER
-			_frameCounter = 0;
-			setReplayMode(OFX_MSA_DATA_IDLE);
-			setReplayFilename("recordedData/physics/physics");
+    _frameCounter = 0;
+    setReplayMode(OFX_MSA_DATA_IDLE);
+    setReplayFilename("recordedData/physics/physics");
 #endif
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>::~WorldT() {
-			clear();
-		}
-		
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		ParticleT<T>* WorldT<T>::makeParticle(T pos, float m, float d) {
-			ParticleT<T> *p = new ParticleT<T>(pos, m, d);
-			addParticle(p);
-			p->release();	// cos addParticle(p) retains it
-			return p;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		SpringT<T>* WorldT<T>::makeSpring(ParticleT<T> *a, ParticleT<T> *b, float _strength, float _restLength) {
-			if(a==b) return NULL;
-			SpringT<T>* c = new SpringT<T>(a, b, _strength, _restLength);
-			addConstraint(c);
-			c->release();	// cos addConstraint(c) retains it
-			return c;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		AttractionT<T>* WorldT<T>::makeAttraction(ParticleT<T> *a, ParticleT<T> *b, float _strength) {
-			if(a==b) return NULL;
-			AttractionT<T>* c = new AttractionT<T>(a, b, _strength);
-			addConstraint(c);
-			c->release();	// cos addConstraint(c) retains it
-			return c;
-		}
-		
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		ParticleT<T>* WorldT<T>::addParticle(ParticleT<T> *p) {
-			p->verbose = verbose;
-			_particles.push_back(p);
-			p->setInstanceName(string("particle "));// + ofToString(_particles.size(), 0));
-			p->_params = &params;
-			p->_world = this;
-			
-#ifdef MSAPHYSICS_USE_RECORDER
-			if(_replayMode == OFX_MSA_DATA_SAVE)
-				_recorder.setSize(numberOfParticles());
-#endif
-			p->retain();
-			return p;		// so you can configure the particle or use for creating constraints
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		ConstraintT<T>* WorldT<T>::addConstraint(ConstraintT<T> *c) {
-			c->verbose = verbose;
-			_constraints[c->type()].push_back(c);
-			c->_params = &params;
-			
-			c->retain();
-			(c->_a)->retain();
-			(c->_b)->retain();
-			
-			switch(c->type()) {
-				case kConstraintTypeCustom:
-					c->setInstanceName(string("constraint "));// + ofToString(_constraints[kConstraintTypeCustom].size(), 0));
-					break;
-					
-				case kConstraintTypeSpring:
-					c->setInstanceName(string("spring "));// + ofToString(_constraints[kConstraintTypeSpring].size(), 0));
-					break;
-					
-				case kConstraintTypeAttraction:
-					c->setInstanceName(string("attraction "));// + ofToString(_constraints[kConstraintTypeAttraction].size(), 0));
-					break;
-			}
-			
-			return c;
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		ParticleT<T>*		WorldT<T>::getParticle(long i) {
-			return i < numberOfParticles() ? _particles[i] : NULL;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		ConstraintT<T>*	WorldT<T>::getConstraint(long i) {
-			return i < numberOfConstraints() ? _constraints[kConstraintTypeCustom][i] : NULL;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		SpringT<T>*		WorldT<T>::getSpring(long i) {
-			return i < numberOfSprings() ? (SpringT<T>*)_constraints[kConstraintTypeSpring][i] : NULL;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		AttractionT<T>*	WorldT<T>::getAttraction(long i) {
-			return i < numberOfAttractions() ? (AttractionT<T>*)_constraints[kConstraintTypeAttraction][i] : NULL;
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		long WorldT<T>::numberOfParticles() {
-			return _particles.size();
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		long WorldT<T>::numberOfConstraints() {
-			return _constraints[kConstraintTypeCustom].size();
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		long WorldT<T>::numberOfSprings() {
-			return _constraints[kConstraintTypeSpring].size();
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		long WorldT<T>::numberOfAttractions() {
-			return _constraints[kConstraintTypeAttraction].size();
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>*  WorldT<T>::setDrag(float drag) {
-			params.drag = drag;
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>*  WorldT<T>::setGravity(float gy) {
-			T g = T::zero();
-			g[1] = gy;
-			setGravity(g);
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>*  WorldT<T>::setGravity(T g) {
-			params.gravity= g;
-			params.doGravity = params.gravity.lengthSquared() > 0;
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		T& WorldT<T>::getGravity() {
-			return params.gravity;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>*  WorldT<T>::setTimeStep(float timeStep) {
-			params.timeStep = timeStep;
-			params.timeStep2 = timeStep * timeStep;
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>*  WorldT<T>::setNumIterations(float numIterations) {
-			params.numIterations = numIterations;
-			return this;
-		}
-		
-		
-		template <typename T>
-		WorldT<T>* WorldT<T>::setWorldMin(T worldMin) {
-			params.worldMin		= worldMin;
-			params.worldSize	= params.worldMax - params.worldMin;
-			params.doWorldEdges	= true;
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::setWorldMax(T worldMax) {
-			params.worldMax		= worldMax;
-			params.worldSize	= params.worldMax - params.worldMin;
-			params.doWorldEdges = true;
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::setWorldSize(T worldMin, T worldMax) {
-			setWorldMin(worldMin);
-			setWorldMax(worldMax);
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::clearWorldSize() {
-			params.doWorldEdges = false;
-			disableCollision();
-			return this;
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::enableCollision() {
-			params.isCollisionEnabled = true;
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::disableCollision() {
-			params.isCollisionEnabled = false;
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		bool WorldT<T>::isCollisionEnabled() {
-			return params.isCollisionEnabled;
-		}
-		
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::setSectorCount(int count) {
-			T r;
-			for(int i=0; i<T::DIM; i++) r[i] = count;
-			setSectorCount(r);
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::setSectorCount(T vCount) {
-			for(int i=0; i<T::DIM; i++) if(vCount[i] <= 0) vCount[i] = 1;
-			
-			params.sectorCount = vCount;
-			
-			//	params.sectorCount.x = 1 << (int)vPow.x;
-			//	params.sectorCount.y = 1 << (int)vPow.y;
-			//	params.sectorCount.z = 1 << (int)vPow.z;
-			
-			//	T sectorSize = params.worldSize / sectorCount;
-			
-			for(typename vector<SectorT<T>*>::iterator it = _sectors.begin(); it != _sectors.end(); it++) {
-				SectorT<T>* sector = *it;
-				sector->release();
-			}
-			_sectors.clear();
-			
-			
-			int numSectors = 1;
-			for(int i=0; i<T::DIM; i++) numSectors *= params.sectorCount[i];
-			for(int i=0; i<numSectors; i++) {
-				_sectors.push_back(new SectorT<T>);
-			}
-			//	_sectors.reserve(params.sectorCount.x * params.sectorCount.y * params.sectorCount.z);
-			
-			return this;
-		}
-		
-		
-		
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>*  WorldT<T>::setParticleCount(long i) {
-			_particles.reserve(i);
-#ifdef MSAPHYSICS_USE_RECORDER
-			//	if(_replayMode == OFX_MSA_DATA_SAVE)
-			_recorder.setSize(i);
-#endif
-			return this;
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::setConstraintCount(long i){
-			_constraints[kConstraintTypeCustom].reserve(i);
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::setSpringCount(long i){
-			_constraints[kConstraintTypeSpring].reserve(i);
-			return this;
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		WorldT<T>* WorldT<T>::setAttractionCount(long i){
-			_constraints[kConstraintTypeAttraction].reserve(i);
-			return this;
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		void WorldT<T>::clear() {
-			for(typename vector<ParticleT<T>*>::iterator it = _particles.begin(); it != _particles.end(); it++) {
-				ParticleT<T>* particle = *it;
-				particle->release();
-			}
-			_particles.clear();
-			
-			
-			for(int i=0; i<kConstraintTypeCount; i++) {
-				for(typename vector<ConstraintT<T>*>::iterator it = _constraints[i].begin(); it != _constraints[i].end(); it++) {
-					ConstraintT<T>* constraint = *it;
-					constraint->release();
-				}
-				_constraints[i].clear();
-			}
-			
-			//			for(typename vector<SectorT<T>*>::iterator it = _sectors.begin(); it != _sectors.end(); it++) {
-			//				SectorT<T>* sector = *it;
-			//				sector->release();
-			//			}
-			//			_sectors.clear();
-			
-			
-		}
-		
-		
-		
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		void WorldT<T>::update(int frameNum) {
-#ifdef MSAPHYSICS_USE_RECORDER
-			if(frameNum < 0) frameNum = _frameCounter;
-			if(_replayMode == OFX_MSA_DATA_LOAD) {
-				load(frameNum);
-			} else {
-				updateParticles();
-				updateConstraints();
-				if(isCollisionEnabled()) checkAllCollisions();
-				if(_replayMode == OFX_MSA_DATA_SAVE) _recorder.save(frameNum);
-			}
-			_frameCounter++;
-#else
-			updateParticles();
-			updateConstraints();
-			if(isCollisionEnabled()) checkAllCollisions();
-#endif
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		void WorldT<T>::draw() {
-			for(int i=0; i<kConstraintTypeCount; i++) {
-				for(typename vector<ConstraintT<T>*>::iterator it = _constraints[i].begin(); it != _constraints[i].end(); it++) {
-					ConstraintT<T>* constraint = *it;
-					constraint->draw();
-				}
-			}
-			
-			for(typename vector<ParticleT<T>*>::iterator it = _particles.begin(); it != _particles.end(); it++) {
-				ParticleT<T>* particle = *it;
-				particle->draw();
-			}
-		}
-		
-		//--------------------------------------------------------------
-        template <typename T>
-		void WorldT<T>::debugDraw() {
-			for(int i=0; i<kConstraintTypeCount; i++) {
-				for(typename vector<ConstraintT<T>*>::iterator it = _constraints[i].begin(); it != _constraints[i].end(); it++) {
-					ConstraintT<T>* constraint = *it;
-					constraint->debugDraw();
-				}
-			}
-			
-			for(typename vector<ParticleT<T>*>::iterator it = _particles.begin(); it != _particles.end(); it++) {
-				ParticleT<T>* particle = *it;
-				particle->debugDraw();
-			}
-		}
-		
-        //--------------------------------------------------------------
-#ifdef MSAPHYSICS_USE_RECORDER
-		template <typename T>
-		void WorldT<T>::load(long frameNum) {
-			_recorder.load(frameNum);
-			for(vector<ParticleT<T>*>::iterator it = _particles.begin(); it != _particles.end(); it++) {
-				ParticleT<T>* particle = *it;
-				particle->set(_recorder.get());// * _playbackScaler);
-			}
-		}
-#endif
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		void WorldT<T>::updateParticles() {
-			int num = 0;
-			typename vector<ParticleT<T>*>::iterator it = _particles.begin();
-			while(it != _particles.end()) {
-				ParticleT<T>* particle = *it;
-				if(particle->_isDead) {							// if particle is dead
-					it = _particles.erase(it);
-					particle->release();
-				} else {
-					num++;
-					particle->doVerlet();
-					particle->update();
-					this->applyUpdaters(particle);
-					if(params.doWorldEdges) {
-						//				if(particle->isFree()) 
-						particle->checkWorldEdges();
-					}
-					
-					// find which sector particle is in
-					//					int i = mapRange(particle->getX(), params.worldMin.x, params.worldMax.x, 0.0f, params.sectorCount.x, true);
-					//					int j = mapRange(particle->getY(), params.worldMin.y, params.worldMax.y, 0.0f, params.sectorCount.y, true);
-					//					int k = mapRange(particle->getZ(), params.worldMin.z, params.worldMax.z, 0.0f, params.sectorCount.z, true);
-					
-					if(isCollisionEnabled()) {
-						int sectorIndex=0;
-						for(int i=0; i<T::DIM; i++) {
-							int t = params.sectorCount[i] ? mapRange(particle->getPosition()[i], params.worldMin[i], params.worldMax[i], 0.0f, params.sectorCount[1]-1, true) : 0;
-							
-							// TODO:
-							//						for(int j=0; j<i; j++) {
-							//							t *= params.sectorCount[i];
-							//						}
-							//						sectorIndex += t;
-							
-						}
-						
-						_sectors[sectorIndex]->addParticle(particle);
-					}
-					
-					//					_sectors[i * params.sectorCount.y * params.sectorCount.x + j * params.sectorCount.x + k]->addParticle(particle);
-					
-					//			printf("sector for particle at %f, %f, %f is %i %i %i\n", particle->getX(), particle->getY(), particle->getZ(), i, j, k);
-					//			for(int s=0; s<_sectors.size(); s++) _sectors[s].checkParticle(particle);
-					
-#ifdef MSAPHYSICS_USE_RECORDER
-					if(_replayMode == OFX_MSA_DATA_SAVE) _recorder.add(*particle);
-#endif
-					it++;
-				}
-			}
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		void WorldT<T>::updateConstraintsByType(vector<ConstraintT<T>*> constraints) {
-		}
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		void WorldT<T>::updateConstraints() {
-			// iterate all constraints and update
-			for (int i = 0; i < params.numIterations; i++) {
-				for(int i=0; i<kConstraintTypeCount; i++) {
-					typename vector<ConstraintT<T>*>::iterator it = _constraints[i].begin();
-					while(it != _constraints[i].end()) {
-						ConstraintT<T>* constraint = *it;
-						if(constraint->_isDead || constraint->_a->_isDead || constraint->_b->_isDead) {
-							constraint->kill();
-							it = _constraints[i].erase(it);
-							constraint->release();
-						} else {
-							if(constraint->shouldSolve()) constraint->solve();
-							it++;
-						}
-					}
-					
-				}
-			}
-		}
-		
-		
-        //--------------------------------------------------------------
-#ifdef MSAPHYSICS_USE_RECORDER
-		template <typename T>
-		WorldT<T>*  WorldT<T>::setReplayMode(long i, float playbackScaler) {
-			_replayMode = i;
-			_playbackScaler = playbackScaler;
-			//	if(_replayMode == OFX_MSA_DATA_SAVE)		// NEW
-			_recorder.setSize(i);
-			return this;
-		}
-		
-		
-		WorldT<T>*  WorldT<T>::setReplayFilename(string f) {
-			_recorder.setFilename(f);
-			return this;
-		}
-#endif
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		void WorldT<T>::checkAllCollisions() {
-			int s = _sectors.size();
-			for(int i=0; i<s; i++) {
-				_sectors[i]->checkSectorCollisions();
-				_sectors[i]->clear();
-			}
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		ConstraintT<T>* WorldT<T>::getConstraint(ParticleT<T> *a, ParticleT<T> *b, int constraintType) {
-			for(typename vector<ConstraintT<T>*>::iterator it = _constraints[constraintType].begin(); it != _constraints[constraintType].end(); it++) {
-				ConstraintT<T>* s = *it;
-				if(((s->_a == a && s->_b == b) || (s->_a == b && s->_b == a)) && !s->_isDead) {
-					return s;
-				}
-			}
-			return NULL;
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		ConstraintT<T>* WorldT<T>::getConstraint(ParticleT<T> *a, int constraintType) {
-			for(typename vector<ConstraintT<T>*>::iterator it = _constraints[constraintType].begin(); it != _constraints[constraintType].end(); it++) {
-				ConstraintT<T>* s = *it;
-				if (((s->_a == a ) || (s->_b == a)) && !s->_isDead) {
-					return s;
-				}
-			}
-			return NULL;
-		}
-		
-		
-        //--------------------------------------------------------------
-		template <typename T>
-		ParamsT<T>&	WorldT<T>::getParams() {
-			return params;
-		}
-	}
-	
 }
+
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::Particle_ptr WorldT<T>::makeParticle(const T& pos, float mass, float drag) {
+    return addParticle(ParticleT<T>::create(pos, mass, drag));
+}
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::Spring_ptr WorldT<T>::makeSpring(Particle_ptr a, Particle_ptr b, float strength, float restLength) {
+    if(a==b) return nullptr;
+    auto c = SpringT<T>::create(a, b, strength, restLength);
+    addConstraint(c);
+    return c;
+}
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::Attraction_ptr WorldT<T>::makeAttraction(Particle_ptr a, Particle_ptr b, float strength) {
+    if(a==b) return nullptr;
+    auto c = AttractionT<T>::create(a, b, strength);
+    addConstraint(c);
+    return c;
+}
+
+
+
+////--------------------------------------------------------------
+//template <typename T>
+//typename WorldT<T>::Particle_ptr WorldT<T>::addParticle(Particle_ptr p) {
+//    _particles.push_back(p); return p;
+//}
+
+////--------------------------------------------------------------
+//template <typename T>
+//typename WorldT<T>::Constraint_ptr WorldT<T>::addConstraint(Constraint_ptr c) {
+//    _constraints[c->type()].push_back(c); return c;
+//}
+
+
+//--------------------------------------------------------------
+//template <typename T>
+//Constraint_ptr WorldT<T>::getConstraint(long i) {
+//    return i < numberOfConstraints() ? _constraints[kConstraintTypeCustom][i] : nullptr;
+//}
+
+
+//--------------------------------------------------------------
+//template <typename T>
+//Attraction_ptr WorldT<T>::getAttraction(long i) {
+//    return i < numberOfAttractions() ? (Attraction_ptr)_constraints[kConstraintTypeAttraction][i] : nullptr;
+//}
+
+
+//--------------------------------------------------------------
+//template <typename T>
+//long WorldT<T>::numberOfParticles() {
+//    return _particles.size();
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//long WorldT<T>::numberOfConstraints() {
+//    return _constraints[kConstraintTypeCustom].size();
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//long WorldT<T>::numberOfSprings() {
+//    return _constraints[kConstraintTypeSpring].size();
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//long WorldT<T>::numberOfAttractions() {
+//    return _constraints[kConstraintTypeAttraction].size();
+//}
+
+
+//--------------------------------------------------------------
+//template <typename T>
+//World_ptr WorldT<T>::setDrag(float drag) {
+//    params->drag = drag; return this->shared_from_this();
+//}
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::World_ptr WorldT<T>::setGravity(float gy) {
+    T g(T::zero());
+    g[1] = gy;
+    setGravity(g);
+    return this->shared_from_this();
+}
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::World_ptr WorldT<T>::setGravity(const T& g) {
+    _params->gravity= g;
+    _params->doGravity = _params->gravity.lengthSquared() > 0;
+    return this->shared_from_this();
+}
+
+//--------------------------------------------------------------
+//template <typename T>
+//const T& WorldT<T>::getGravity() const {
+//    return _params->gravity;
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//World_ptr WorldT<T>::setTimeStep(float t) {
+//    params->timeStep = t; params->timeStep2 = t*t; return this->shared_from_this();
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//World_ptr WorldT<T>::setNumIterations(float numIterations) {
+//    params->numIterations = numIterations; return this->shared_from_this();
+//}
+
+
+//template <typename T>
+//World_ptr WorldT<T>::setWorldMin(const T& worldMin) {
+//    _params->worldMin = worldMin; updateWorldSize(); return this->shared_from_this();
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//World_ptr WorldT<T>::setWorldMax(const T& worldMax) {
+//    _params->worldMax = worldMax; updateWorldSize(); return this->shared_from_this();
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//World_ptr WorldT<T>::setWorldSize(const T& worldMin, const T& worldMax) {
+//    setWorldMin(worldMin); setWorldMax(worldMax); return this->shared_from_this();
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//World_ptr WorldT<T>::clearWorldSize() {
+//    _params->doWorldEdges = false; disableCollision(); return this->shared_from_this();
+//}
+
+
+//--------------------------------------------------------------
+//template <typename T>
+//World_ptr WorldT<T>::enableCollision() {
+//    _params->isCollisionEnabled = true; return this->shared_from_this();
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//World_ptr WorldT<T>::disableCollision() {
+//    _params->isCollisionEnabled = false; return this->shared_from_this();
+//}
+
+//--------------------------------------------------------------
+//template <typename T>
+//bool WorldT<T>::isCollisionEnabled() const {
+//    return _params->isCollisionEnabled;
+//}
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::World_ptr WorldT<T>::setSectorCount(int count) {
+    T r;
+    for(int i=0; i<T::DIM; i++) r[i] = count;
+    setSectorCount(r);
+    return this->shared_from_this();
+}
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::World_ptr WorldT<T>::setSectorCount(T vCount) {
+    for(int i=0; i<T::DIM; i++) if(vCount[i] <= 0) vCount[i] = 1;
+
+    _params->sectorCount = vCount;
+
+    //	params.sectorCount.x = 1 << (int)vPow.x;
+    //	params.sectorCount.y = 1 << (int)vPow.y;
+    //	params.sectorCount.z = 1 << (int)vPow.z;
+
+    //	T sectorSize = params.worldSize / sectorCount;
+    _sectors.clear();
+
+    int numSectors = 1;
+    for(int i=0; i<T::DIM; i++) numSectors *= _params->sectorCount[i];
+    //    for(int i=0; i<numSectors; i++) _sectors.push_back(SectorT<T>::create()); // FIX
+    return this->shared_from_this();
+}
+
+
+
+
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::World_ptr WorldT<T>::setParticleCount(long i) {
+    _particles.reserve(i);
+#ifdef MSAPHYSICS_USE_RECORDER
+    //	if(_replayMode == OFX_MSA_DATA_SAVE)
+    _recorder.setSize(i);
+#endif
+    return this->shared_from_this();
+}
+
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::World_ptr WorldT<T>::setCustomConstraintCount(long i){
+    _constraints[kConstraintTypeCustom].reserve(i);
+    return this->shared_from_this();
+}
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::World_ptr WorldT<T>::setSpringCount(long i){
+    _constraints[kConstraintTypeSpring].reserve(i);
+    return this->shared_from_this();
+}
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::World_ptr WorldT<T>::setAttractionCount(long i){
+    _constraints[kConstraintTypeAttraction].reserve(i);
+    return this->shared_from_this();
+}
+
+
+//--------------------------------------------------------------
+template <typename T>
+void WorldT<T>::clear() {
+    _particles.clear();
+    _constraints.clear();
+    _sectors.clear();   // TODO: this will clear the sectors as well. maybe we just want to empty the sectors, not erase them
+}
+
+
+//--------------------------------------------------------------
+template <typename T>
+void WorldT<T>::update(int frameNum) {
+#ifdef MSAPHYSICS_USE_RECORDER
+    if(frameNum < 0) frameNum = _frameCounter;
+    if(_replayMode == OFX_MSA_DATA_LOAD) {
+        load(frameNum);
+    } else {
+        updateParticles();
+        updateConstraints();
+        if(isCollisionEnabled()) checkAllCollisions();
+        if(_replayMode == OFX_MSA_DATA_SAVE) _recorder.save(frameNum);
+    }
+    _frameCounter++;
+#else
+    updateParticles();
+    updateConstraints();
+    if(isCollisionEnabled()) checkAllCollisions();
+#endif
+}
+
+
+//--------------------------------------------------------------
+template <typename T>
+void WorldT<T>::draw() {
+    for(auto&& vc : _constraints) for(auto&& c : vc.second) c->draw();
+    for(auto&& p : _particles) p->draw();
+}
+
+//--------------------------------------------------------------
+template <typename T>
+void WorldT<T>::debugDraw() {
+    for(auto&& vc : _constraints) for(auto&& c : vc->second) c->debugDraw();
+    for(auto&& p : _particles) p->debugDraw();
+}
+
+//--------------------------------------------------------------
+#ifdef MSAPHYSICS_USE_RECORDER
+template <typename T>
+void WorldT<T>::load(long frameNum) {
+    _recorder.load(frameNum);
+    for(vector<Particle_ptr>::iterator it = _particles.begin(); it != _particles.end(); it++) {
+        Particle_ptr particle = *it;
+        p->set(_recorder.get());// * _playbackScaler);
+    }
+}
+#endif
+
+//--------------------------------------------------------------
+template <typename T>
+void WorldT<T>::updateParticles() {
+
+    // remove dead particles first
+    _particles.erase( remove_if(_particles.begin(), _particles.end(), [](const Particle_ptr &o) { return o->isDead(); }), _particles.end());
+
+    // update remaining particles
+    for(auto&& p : _particles) {
+        // do verlet
+        {
+            if(p->isFree()) {
+                if(_params->doGravity) p->addVelocity(_params->gravity);
+
+                T curPos(p->getPosition());
+                T vel(p->getVelocity());
+                p->moveBy(vel * _params->drag * p->getDrag());// + timeStep2;
+                //_pos += (_pos - _oldPos);// + timeStep2;	// TODO
+                p->setOldPosition(curPos);
+            }
+        }
+
+        p->update();
+        //        this->applyUpdaters(particle);    // TODO: bring back updaters
+        if(_params->doWorldEdges) {
+            //				if(p->isFree())
+            bool collided = false;
+            T vel(p->getVelocity());
+            T pos(p->getPosition());
+            T oldPos;
+            float radius = p->getRadius();
+            float bounce = p->getBounce();
+            for(int i=0; i<T::DIM; i++) {
+                //				r[i] = _radius;
+
+                float speed = vel[i];
+                if(pos[i] < _params->worldMin[i] + radius) {
+                    pos[i] = _params->worldMin[i] + radius;
+                    oldPos[i] = pos[i] + speed * bounce;
+                    collided = true;
+                } else if(pos[i] > _params->worldMax[i] - radius) {
+                    pos[i] = _params->worldMax[i] - radius;
+                    oldPos[i] = pos[i] + speed * bounce;
+                    collided = true;
+                }
+            }
+            p->moveTo(pos);
+            p->setOldPosition(oldPos);
+
+            if(collided) p->collidedWithEdgeOfWorld(p->getVelocity() - vel);
+        }
+
+        // find which sector particle is in
+        //					int i = mapRange(p->getX(), _params->worldMin.x, _params->worldMax.x, 0.0f, _params->sectorCount.x, true);
+        //					int j = mapRange(p->getY(), _params->worldMin.y, _params->worldMax.y, 0.0f, _params->sectorCount.y, true);
+        //					int k = mapRange(p->getZ(), _params->worldMin.z, _params->worldMax.z, 0.0f, _params->sectorCount.z, true);
+
+        if(isCollisionEnabled()) {
+            int sectorIndex = 0;
+            for(int i=0; i<T::DIM; i++) {
+                int t = _params->sectorCount[i] ? mapRange(p->getPosition()[i], _params->worldMin[i], _params->worldMax[i], 0.0f, _params->sectorCount[1]-1, true) : 0;
+
+                // TODO:
+                //						for(int j=0; j<i; j++) {
+                //							t *= _params->sectorCount[i];
+                //						}
+                //						sectorIndex += t;
+
+            }
+
+            _sectors[sectorIndex]->addParticle(p);
+        }
+
+        //					_sectors[i * _params->sectorCount.y * _params->sectorCount.x + j * _params->sectorCount.x + k]->addParticle(particle);
+
+        //			printf("sector for particle at %f, %f, %f is %i %i %i\n", p->getX(), p->getY(), p->getZ(), i, j, k);
+        //			for(int s=0; s<_sectors.size(); s++) _sectors[s].checkParticle(particle);
+
+#ifdef MSAPHYSICS_USE_RECORDER
+        if(_replayMode == OFX_MSA_DATA_SAVE) _recorder.add(*particle);
+#endif
+    }
+}
+
+
+//--------------------------------------------------------------
+//template <typename T>
+//void WorldT<T>::updateConstraintsByType(vector<Constraint_ptr> constraints) {
+//}
+
+
+//--------------------------------------------------------------
+template <typename T>
+void WorldT<T>::updateConstraints() {
+
+    // remove constraints if dead
+    for(auto&& v : _constraints) {
+        v.second.erase( remove_if(v.second.begin(), v.second.end(), [](const Constraint_ptr &c) { return c->isDead(); }), v.second.end());
+    }
+
+    // iterations
+    for (int n=0; n<_params->numIterations; n++) {
+
+        // iterate constraint types
+        for(auto&& v : _constraints) {
+
+            // iterate constraints
+            for(auto&& c : v.second) {
+                if(c->shouldSolve()) c->solve();
+            }
+
+        }
+    }
+}
+
+
+//--------------------------------------------------------------
+#ifdef MSAPHYSICS_USE_RECORDER
+template <typename T>
+World_ptr  WorldT<T>::setReplayMode(long i, float playbackScaler) {
+    _replayMode = i;
+    _playbackScaler = playbackScaler;
+    //	if(_replayMode == OFX_MSA_DATA_SAVE)		// NEW
+    _recorder.setSize(i);
+    return this;
+}
+
+
+World_ptr  WorldT<T>::setReplayFilename(string f) {
+    _recorder.setFilename(f);
+    return this;
+}
+#endif
+
+
+//--------------------------------------------------------------
+template <typename T>
+void WorldT<T>::checkAllCollisions() {
+    for(auto&& s : _sectors) {
+        s->checkSectorCollisions();
+        s->clear();
+    }
+}
+
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::Constraint_ptr WorldT<T>::findConstraint(weak_ptr<ParticleT<T>> a, weak_ptr<ParticleT<T>> b, int constraintType) {
+    for(auto&& constraint : _constraints[constraintType]) {
+        if(((constraint->_a == a && constraint->_b == b) || (constraint->_a == b && constraint->_b == a)) && !constraint->_isDead) {
+            return constraint;
+        }
+    }
+    return nullptr;
+}
+
+
+//--------------------------------------------------------------
+template <typename T>
+typename WorldT<T>::Constraint_ptr WorldT<T>::findConstraint(weak_ptr<ParticleT<T>> a, int constraintType) {
+    for(auto&& constraint : _constraints[constraintType]) {
+        if (((constraint->_a == a ) || (constraint->_b == a)) && !constraint->_isDead) {
+            return constraint;
+        }
+    }
+    return nullptr;
+}
+
+
+//--------------------------------------------------------------
+//template <typename T>
+//Params_ptr WorldT<T>::getParams() const {
+//    return params;
+//}
+
+}
+}
+

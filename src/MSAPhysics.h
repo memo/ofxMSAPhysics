@@ -11,7 +11,6 @@
 #pragma once
 
 #include "MSACore.h"
-#include "MSAObjCPointer.h"
 
 #include "MSAPhysicsParticle.h"
 #include "MSAPhysicsConstraint.h"
@@ -19,7 +18,7 @@
 #include "MSAPhysicsAttraction.h"
 
 #include "MSAPhysicsParams.h"
-#include "MSAPhysicsCallbacks.h"
+//#include "MSAPhysicsCallbacks.h"
 
 #include "MSAPhysicsSector.h"
 #include "MSAPhysicsWorld.h"
