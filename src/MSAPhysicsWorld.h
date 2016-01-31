@@ -31,8 +31,8 @@ public:
     Attraction_ptr	getAttraction(long i)               { return i < numberOfAttractions() ? dynamic_pointer_cast< AttractionT<T> >(_constraints[kConstraintTypeAttraction][i]) : nullptr; }
 
     // findConstraint between particles. these do a search, so not instant, has some overheads
-    Constraint_ptr  findConstraint(weak_ptr<ParticleT<T>> a, int constraintType);
-    Constraint_ptr	findConstraint(weak_ptr<ParticleT<T>> a, weak_ptr<ParticleT<T>> b, int constraintType);
+    Constraint_ptr  findConstraint(Particle_ptr a, int constraintType);
+    Constraint_ptr	findConstraint(Particle_ptr a, Particle_ptr b, int constraintType);
 
     long			numberOfParticles()                 { return _particles.size(); }
     long			numberOfCustomConstraints()         { return _constraints[kConstraintTypeCustom].size(); }
@@ -575,9 +575,9 @@ void WorldT<T>::checkAllCollisions() {
 
 //--------------------------------------------------------------
 template <typename T>
-typename WorldT<T>::Constraint_ptr WorldT<T>::findConstraint(weak_ptr<ParticleT<T>> a, weak_ptr<ParticleT<T>> b, int constraintType) {
+typename WorldT<T>::Constraint_ptr WorldT<T>::findConstraint(Particle_ptr a, Particle_ptr b, int constraintType) {
     for(auto&& constraint : _constraints[constraintType]) {
-        if(((constraint->_a == a && constraint->_b == b) || (constraint->_a == b && constraint->_b == a)) && !constraint->_isDead) {
+        if(((constraint->getA() == a && constraint->getB() == b) || (constraint->getA() == b && constraint->getB() == a)) && !constraint->isDead()) {
             return constraint;
         }
     }
@@ -587,9 +587,9 @@ typename WorldT<T>::Constraint_ptr WorldT<T>::findConstraint(weak_ptr<ParticleT<
 
 //--------------------------------------------------------------
 template <typename T>
-typename WorldT<T>::Constraint_ptr WorldT<T>::findConstraint(weak_ptr<ParticleT<T>> a, int constraintType) {
+typename WorldT<T>::Constraint_ptr WorldT<T>::findConstraint(Particle_ptr a, int constraintType) {
     for(auto&& constraint : _constraints[constraintType]) {
-        if (((constraint->_a == a ) || (constraint->_b == a)) && !constraint->_isDead) {
+        if (((constraint->getA() == a ) || (constraint->getB() == a)) && !constraint->isDead()) {
             return constraint;
         }
     }
