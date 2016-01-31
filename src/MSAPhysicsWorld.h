@@ -30,6 +30,16 @@ public:
     Spring_ptr      getSpring(long i)                   { return i < numberOfSprings() ? dynamic_pointer_cast< SpringT<T> >(_constraints[kConstraintTypeSpring][i]) : nullptr; }
     Attraction_ptr	getAttraction(long i)               { return i < numberOfAttractions() ? dynamic_pointer_cast< AttractionT<T> >(_constraints[kConstraintTypeAttraction][i]) : nullptr; }
 
+    vector< Particle_ptr >& getParticles()                  { return _particles; }
+    const vector< Particle_ptr >& getParticles() const      { return _particles; }
+
+    vector< Spring_ptr >& getSprings()                      { return _constraints[kConstraintTypeSpring]; }
+    const vector< Spring_ptr >& getSprings() const          { return _constraints[kConstraintTypeSpring]; }
+
+    vector< Attraction_ptr >& getAttractions()              { return _constraints[kConstraintTypeAttraction]; }
+    const vector< Attraction_ptr >& getAttractions() const  { return _constraints[kConstraintTypeAttraction]; }
+
+
     // findConstraint between particles. these do a search, so not instant, has some overheads
     Constraint_ptr  findConstraint(Particle_ptr a, int constraintType);
     Constraint_ptr	findConstraint(Particle_ptr a, Particle_ptr b, int constraintType);
