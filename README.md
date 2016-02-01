@@ -1,20 +1,5 @@
 ofxMSAPhysics
 =====================================
-Major Updates
--------
-As of v4 there are radical, long awaited updates under the hood:
-- I've ditched my own smart pointer class (ofxObjCPointer) in favour of std::shared_ptr and std::weak_ptr. It's much nicer.
-- This has had a significant effec on the API. I've made it not possible to create particles or constraints directly, or on the stack. But you need to use a factory method.
-- 'using' aliases for templated class smart pointers
-- removed 2d/3d convenience typedefs for clases (Particle2D, World3D etc) and replaced them with typedefs for the points (Particle2D_ptr, World3D_ptr) . 
-
-	Particle3D_Ptr p = Particle3D::create(...);
-	world->addParticle(p);
-or
-
-	Particle3D_Ptr p = world->createParticle(...);
-
-
 
 Introduction
 ------------
@@ -34,12 +19,12 @@ Copy to your openFrameworks/addons folder.
 Dependencies
 ------------
 - MSACore
-- MSAObjCPointer
+- MSAObjCPointer <--- no longer needed since v4 (uses c++11 smart pointers instead)
 
 
 Compatibility
 ------------
-openFrameworks 0072  
+tested with openFrameworks 0.7.2 - 0.9  
 I am generally testing only with [openFrameworks](www.openframeworks.cc), however it should work with [Cinder](www.libcinder.org) too. If it doesn't, please file an issue.
 
 Known issues
@@ -51,6 +36,20 @@ Version history
 TODO: 
 - auto calculate bin size (keep track of largest particle, on physics::addParticle and particle::setSize)
 
+
+### v4.0 01/02/2016
+Major updates under the hood
+
+* I've ditched my own smart pointer class (ofxObjCPointer) in favour of std::shared_ptr and std::weak_ptr. It's much nicer.
+* This has had a significant effec on the API. I've made it not possible to create particles or constraints directly, or on the stack. But you always need to use a factory method, which returns a shared pointer.
+* API has changed breaking backwards compatability a bit. See example for more details, but the jist of it is below. E.g. to create a particle:
+
+	Particle3D_ptr p = Particle3D::create(...);
+	world->addParticle(p);
+
+or
+
+	Particle3D_ptr p = world->createParticle(...);
 
 ### v3.2    23/09/2012
 - compatible with OF0072
