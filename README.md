@@ -41,15 +41,15 @@ TODO:
 Major updates under the hood
 
 * I've ditched my own smart pointer class (ofxObjCPointer) in favour of std::shared_ptr and std::weak_ptr. It's much nicer.
-* This has had a significant effec on the API. I've made it not possible to create particles or constraints directly, or on the stack. But you always need to use a factory method, which returns a shared pointer.
-* API has changed breaking backwards compatability a bit. See example for more details, but the jist of it is below. E.g. to create a particle:
+* This has had an effect on the public API, breaking backwards compatibility a bit (for the better I think). I've made it not possible to create particles or constraints directly, or on the stack. But you always need to use a factory method, which returns a shared pointer.
+* See example for more details, but the jist of it is below. E.g. to create a particle:
 
-	Particle3D_ptr p = Particle3D::create(...);
-	world->addParticle(p);
+		Particle3D_ptr p = Particle3D::create(...);
+		world->addParticle(p);
 
 or
 
-	Particle3D_ptr p = world->createParticle(...);
+		Particle3D_ptr p = world->createParticle(...);
 
 ### v3.2    23/09/2012
 - compatible with OF0072
