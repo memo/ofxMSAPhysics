@@ -4,14 +4,16 @@
 
 using namespace msa::physics;
 
+#define UNITS(s)                (s * ofGetWidth() / 1280.0) // scale to uniform units
+
 #define	SPRING_MIN_STRENGTH		0.005
 #define SPRING_MAX_STRENGTH		0.1
 
-#define	SPRING_MIN_WIDTH		1
-#define SPRING_MAX_WIDTH		3
+#define	SPRING_MIN_WIDTH		UNITS(1)
+#define SPRING_MAX_WIDTH		UNITS(3)
 
-#define NODE_MIN_RADIUS			5
-#define NODE_MAX_RADIUS			15
+#define NODE_MIN_RADIUS			UNITS(5)
+#define NODE_MAX_RADIUS			UNITS(15)
 
 #define MIN_MASS				1
 #define MAX_MASS				3
@@ -21,7 +23,7 @@ using namespace msa::physics;
 
 #define	FIX_PROBABILITY			10		// % probability of a particle being fixed on creation
 
-#define FORCE_AMOUNT			10
+#define FORCE_AMOUNT			UNITS(10)
 
 #define EDGE_DRAG				0.98
 
@@ -52,6 +54,9 @@ public:
     Particle3D_ptr      mouseNode;
 
     void initScene() {
+        width = ofGetWidth();
+        height = ofGetHeight();
+
         // initialize our physics world
         world = World3D::create();
 
@@ -106,13 +111,10 @@ public:
         ofBackground(255, 255, 255);
         ofSetVerticalSync(true);
         ofSetFrameRate(60);
-
         ballImage.load("ball.png");
 
-        width = ofGetWidth();
-        height = ofGetHeight();
-
-        initScene();
+ //       initScene();
+        windowResized(ofGetWidth(), ofGetHeight());
 
         setupLighting();
     }
@@ -127,7 +129,7 @@ public:
         float bounce	= ofRandom(MIN_BOUNCE, MAX_BOUNCE);
         float radius	= ofMap(mass, MIN_MASS, MAX_MASS, NODE_MIN_RADIUS, NODE_MAX_RADIUS);
 
-        // world->makeParticle returns a particle pointer so you can customize it
+        // world->makeParticle returns a partiUNITS cle pointer so you can customize it
         Particle3D_ptr p = world->makeParticle(ofVec3f(posX, posY, posZ));
 
         // set a bunch of properties (you don't have to set all of them, there are defaults)
@@ -357,7 +359,7 @@ public:
 
         ofDisableDepthTest();
         ofDisableLighting();
-        ofSetColor(0);
+        ofSetColor(0, 255);
         ofDrawBitmapString(" FPS: " + ofToString(ofGetFrameRate(), 2)
                            + " | Number of particles: " + ofToString(world->numberOfParticles(), 2)
                            + " | Number of springs: " + ofToString(world->numberOfSprings(), 2)
@@ -430,6 +432,11 @@ public:
     //--------------------------------------------------------------
     void mouseReleased(){
         doMouseXY = doMouseYZ = false;
+    }
+
+    //--------------------------------------------------------------
+    void windowResized(int x, int y) {
+        initScene();
     }
 
 };
