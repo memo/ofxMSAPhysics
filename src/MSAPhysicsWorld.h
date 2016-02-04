@@ -39,6 +39,8 @@ public:
     vector< Attraction_ptr >& getAttractions()              { return _constraints[kConstraintTypeAttraction]; }
     const vector< Attraction_ptr >& getAttractions() const  { return _constraints[kConstraintTypeAttraction]; }
 
+    // find particle(s) at position, this does a search, so not instant, has overheads
+    vector<Particle_ptr> findParticles(const T& pos, float radius = FLT_EPSILON);
 
     // findConstraint between particles. these do a search, so not instant, has some overheads
     Constraint_ptr  findConstraint(Particle_ptr a, int constraintType);
@@ -582,6 +584,14 @@ void WorldT<T>::checkAllCollisions() {
     }
 }
 
+
+//--------------------------------------------------------------
+template <typename T>
+vector<typename WorldT<T>::Particle_ptr> WorldT<T>::findParticles(const T& pos, float radius) {
+    vector<Particle_ptr> ret;
+    for(auto&& p : _particles) if((p->getPosition() - pos).lengthSquared() < radius * radius) ret.push_back(p);
+    return ret;
+}
 
 //--------------------------------------------------------------
 template <typename T>
