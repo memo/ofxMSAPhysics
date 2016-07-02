@@ -27,7 +27,7 @@ protected:
     vector< Particle_ptr >	_particles;
 
     SectorT() {}
-    static bool checkCollisionBetween(shared_ptr< ParticleT<T> > a, shared_ptr< ParticleT<T> > b);
+    static bool checkCollisionBetween(ParticleT<T>& a, ParticleT<T>& b);
 };
 
 
@@ -36,8 +36,9 @@ template <typename T>
 void SectorT<T>::checkSectorCollisions() {
     int s = _particles.size();
     for(int i=0; i<s-1; i++) {
+        auto& part1 = *_particles[i];
         for(int j=i+1; j<s; j++) {
-            checkCollisionBetween(_particles[i], _particles[j]);
+            checkCollisionBetween(part1, *_particles[j]);
         }
     }
 }
@@ -45,30 +46,30 @@ void SectorT<T>::checkSectorCollisions() {
 
 //--------------------------------------------------------------
 template <typename T>
-bool SectorT<T>::checkCollisionBetween(shared_ptr< ParticleT<T> > a, shared_ptr< ParticleT<T> > b) {
-    if(a->hasCollision() == false || b->hasCollision() == false) return false;
-    if(a->hasPassiveCollision() && b->hasPassiveCollision()) return false;
-    if((a->collisionPlane & b->collisionPlane) == 0) return false;
+bool SectorT<T>::checkCollisionBetween(ParticleT<T>& a, ParticleT<T>& b) {
+    if(a.hasCollision() == false || b.hasCollision() == false) return false;
+    if(a.hasPassiveCollision() && b.hasPassiveCollision()) return false;
+    if((a.collisionPlane & b.collisionPlane) == 0) return false;
 
-    //			printf("same planes %i %i\n", a->collisionPlane, b->collisionPlane);
+    //			printf("same planes %i %i\n", a.collisionPlane, b.collisionPlane);
 
-    float restLength = b->getRadius() + a->getRadius();
-    T delta = b->getPosition() - a->getPosition();
+    float restLength = b.getRadius() + a.getRadius();
+    T delta = b.getPosition() - a.getPosition();
     float deltaLength2 = delta.lengthSquared();
     if(deltaLength2 >restLength * restLength) return false;
 
     // TODO: fast approximation of square root
     // (1st order Taylor-expansion at a neighborhood of the rest length r (one Newton-Raphson iteration with initial guess r))
     float deltaLength = sqrt(deltaLength2);
-    float force = (deltaLength - restLength) / (deltaLength * (a->getInvMass() + b->getInvMass()));
+    float force = (deltaLength - restLength) / (deltaLength * (a.getInvMass() + b.getInvMass()));
 
     T deltaForce(delta * force);
 
-    if (a->isFree()) a->moveBy(deltaForce * a->getInvMass(), false);
-    if (b->isFree()) b->moveBy(deltaForce * -b->getInvMass(), false);
+    if (a.isFree()) a.moveBy(deltaForce * a.getInvMass(), false);
+    if (b.isFree()) b.moveBy(deltaForce * -b.getInvMass(), false);
 
-    a->collidedWithParticle(b, deltaForce);
-    b->collidedWithParticle(a, -deltaForce);
+    a.collidedWithParticle(b, deltaForce);
+    b.collidedWithParticle(a, -deltaForce);
 
     return true;
 }
