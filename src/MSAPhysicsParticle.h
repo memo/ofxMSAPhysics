@@ -79,7 +79,7 @@ public:
     virtual void        draw() {}		// called every frame in world::draw();
 
     // called when particle collides with another particle (called for both particles) or edge of world
-    virtual void        collidedWithParticle(weak_ptr<ParticleT<T>> other, const T& collisionForce) {}
+    virtual void        collidedWithParticle(ParticleT<T>& other, const T& collisionForce) {}
     virtual void        collidedWithEdgeOfWorld(const T& collisionForce) {}
 
     void                kill()                          { _isDead = true; }
